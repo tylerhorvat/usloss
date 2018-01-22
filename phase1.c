@@ -515,12 +515,13 @@ void disableInterrupts()
 	int result;
 	
 	// If in kernal mode, then disable interrupts, else error and halt
-    if (USLOSS_PsrGet() & USLOSS_PSR_CURRENT_MODE)
-		result = USLOSS_PsrSet(USLOSS_PsrGet() & USLOSS_PSR_CURRENT_INT_MASK);
-	else {
+    if (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet())
+        result = USLOSS_PsrSet(USLOSS_PsrGet() & USLOSS_PSR_CURRENT_INT);
+    else
+    {
         USLOSS_Console("disableInterrupts(): Not in kernel mode.  Halting...\n");
         USLOSS_Halt(1);	
-	}
+    }
 
 	if (result == USLOSS_ERR_INVALID_PSR) {
 	}
