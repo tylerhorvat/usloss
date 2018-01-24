@@ -53,7 +53,7 @@ struct procStruct {
     procQueue  childQueue; /*processes children*/
     int quitStatus;
     procQueue deadChildQueue; 
-    procQueue nextDeadSibling;
+    procPtr nextDeadSibling;
     
     procQueue zapQueue;
     procPtr nextZapPtr;
