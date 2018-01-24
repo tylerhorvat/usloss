@@ -22,6 +22,7 @@ static void checkDeadlock();
 // djf
 void enableInterrupts();
 void disableInterrupts();
+void checkForKernelMode(char *);
 
 /* -------------------------- Globals ------------------------------------- */
 
@@ -140,7 +141,7 @@ void startup(int argc, char *argv[])
     }
   
     // start the test process
-    if (DEBUG && debugflag)
+    /*if (DEBUG && debugflag)
         USLOSS_Console("startup(): calling fork1() for start1\n");
     result = fork1("start1", start1, NULL, 2 * USLOSS_MIN_STACK, 1);
     if (result < 0) {
@@ -153,7 +154,7 @@ void startup(int argc, char *argv[])
 	dispatcher();
 	
     USLOSS_Console("startup(): Should not see this message! ");
-    USLOSS_Console("Returned from fork1 call that created start1\n");
+    USLOSS_Console("Returned from fork1 call that created start1\n");*/
 	
     return;
 } /* startup */
@@ -195,10 +196,11 @@ int fork1(char *name, int (*startFunc)(char *), char *arg,
         USLOSS_Console("fork1(): creating process %s\n", name);
 
     // If not in kernal mode, error and halt
-    if (!(USLOSS_PsrGet() & USLOSS_PSR_CURRENT_MODE)) {
+    /*if (!(USLOSS_PsrGet() & USLOSS_PSR_CURRENT_MODE)) {
         USLOSS_Console("fork1(): Not in kernel mode.  Halting...\n");
         USLOSS_Halt(1);
-    }
+    }*/
+    checkForKernelMode("fork1()");
 
 	// If not in kernal mode, error and halt, test change to user mode.
 	// Video5.34-46
@@ -266,24 +268,30 @@ int fork1(char *name, int (*startFunc)(char *), char *arg,
 	// Enable interrupts
     if (DEBUG && debugflag)
         USLOSS_Console("fork1(): enable interrupts\n");
-	enableInterrupts();
-	
+    
+    enableInterrupts();
+
+    USLOSS_Console("pass 1\n");
+ 	
     USLOSS_ContextInit(&(ProcTable[procSlot].state),
                        stack,
                        ProcTable[procSlot].stackSize,
                        NULL,
                        launch);
 
+    USLOSS_Console("pass 2\n");
 
     // for future phase(s)
     //p1_fork(ProcTable[procSlot].pid);
 
     // More stuff to do here...
-	// Video5.33, do not call dispatcher for sentenal
-	dispatcher();
-
+    // Video5.33, do not call dispatcher for sentenal
+    dispatcher();
+    
+    USLOSS_Console("pass 3\n");
     // djf
-	numProcs++; 
+    numProcs++; 
+    
     return procSlot;
 
     //return -1;  // -1 is not correct! Here to prevent warning.
@@ -366,6 +374,8 @@ int fork1(char *name, int (*startFunc)(char *), char *arg,
    ------------------------------------------------------------------------ */
  void launch()
 {
+    USLOSS_Console("launch 1\n");
+
     int result;
 
     if (DEBUG && debugflag)
@@ -410,6 +420,17 @@ int join(int *status)
 
 	// djf otherwise the program is placed on a blocked list so the dispatcher won't select it
     // setting the flag back, and returning the PID of the process that quit or kill saved earlier     	
+
+    checkForKernelMode("join()");
+    disableInterrupts();
+
+    if (DEBUG && debugflag)
+        USLOSS_Console("join(): In join, pid=%d\n", Current->pid);
+
+    //check if has children
+    
+
+
 
     return -1;  // -1 is not correct! Here to prevent warning.
 } /* join */ 
@@ -456,6 +477,7 @@ void dispatcher(void)	// djf should be called in numerious places, quit etc.
     int currentPriority = 6;
     int currentPID = 0;
 	int i;
+    USLOSS_Console("dispatcher 1\n");
 
     for(i = 0; i < MAXPROC; i++) {
         if(ProcTable[i].status == 1 && ProcTable[i].priority < currentPriority ) {
@@ -465,6 +487,8 @@ void dispatcher(void)	// djf should be called in numerious places, quit etc.
             }
         }
     }
+
+    USLOSS_Console("dispatcher 2\n");
     
     USLOSS_ContextSwitch(&ProcTable[pid].state, &ProcTable[i].state);
     pid = currentPID;	
@@ -512,9 +536,9 @@ static void checkDeadlock()
  */
 void disableInterrupts()
 {
-	int result;
+    int result;
 	
-	// If in kernal mode, then disable interrupts, else error and halt
+    // If in kernal mode, then disable interrupts, else error and halt
     if (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet())
         result = USLOSS_PsrSet(USLOSS_PsrGet() & USLOSS_PSR_CURRENT_INT);
     else
@@ -523,8 +547,8 @@ void disableInterrupts()
         USLOSS_Halt(1);	
     }
 
-	if (result == USLOSS_ERR_INVALID_PSR) {
-	}
+    if (result == USLOSS_ERR_INVALID_PSR) {
+    }
 	
 } /* disableInterrupts */
 
@@ -534,21 +558,30 @@ void disableInterrupts()
  */
 void enableInterrupts()
 {
-	int result;
+    int result;
 
-	// If in kernal mode, then enable interrupts, else error and halt
+    // If in kernal mode, then enable interrupts, else error and halt
     if (USLOSS_PsrGet() & USLOSS_PSR_CURRENT_MODE)
 		result = USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
-	else {
+    else {
         USLOSS_Console("enableInterrupts(): Not in kernel mode.  Halting...\n");
         USLOSS_Halt(1);	
-	}	
+    }	
 
-	if (result == USLOSS_ERR_INVALID_PSR) {
-	}
+    USLOSS_Console("enableInterrupts 1\n");
+
+    if (result == USLOSS_ERR_INVALID_PSR) {
+    }
 	
 } /* enableInterrupts */
 
+void checkForKernelMode(char *func) {
+
+   if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) {
+      USLOSS_Console("%s: called while in user mode, by process %d. Halting...\n", func, Current->pid);
+   }
+
+}
 /* Video3 exampled
 		int *(*z)(int, float, double)
 		int *b(int xray, float yoke, double zibra)
