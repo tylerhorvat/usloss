@@ -38,7 +38,7 @@ int readTime();
 /* -------------------------- Globals ------------------------------------- */
 
 // Patrick's debugging global variable...
-int debugflag = 1;
+int debugflag = 0;
 
 // the process table
 procStruct ProcTable[MAXPROC];
@@ -55,7 +55,7 @@ unsigned int nextPid = SENTINELPID;
 /* current process ID */
 int numProcs; 
 
-
+int clockInterruptCount = 0;
 
 /* -------------------------- Functions ----------------------------------- */
 
@@ -94,7 +94,7 @@ void startup(int argc, char *argv[])
     USLOSS_IntVec[USLOSS_ILLEGAL_INT] = illegalInstructionHandler;
 
     // Initialize the clock interrupt handler.  Check Video5.50 if needed. will fix notes?
-	USLOSS_IntVec[USLOSS_CLOCK_INT] = clockHandler;
+	USLOSS_IntVec[USLOSS_CLOCK_DEV] = clockHandler;  // sould be INT?
 	
     // startup a sentinel process
     if (DEBUG && debugflag)
@@ -111,7 +111,7 @@ void startup(int argc, char *argv[])
     // start the test process
     if (DEBUG && debugflag)
         USLOSS_Console("startup(): calling fork1() for start1\n");
-    result = fork1("start", start1, NULL, 2 * USLOSS_MIN_STACK, 1);
+    result = fork1("start1", start1, NULL, 2 * USLOSS_MIN_STACK, 1);
     if (result < 0) {
         USLOSS_Console("startup(): fork1 for start1 returned an error, halting...\n");
         USLOSS_Halt(1);
@@ -134,6 +134,9 @@ void finish(int argc, char *argv[])
 {
     if (DEBUG && debugflag)
         USLOSS_Console("in finish...\n");
+
+    USLOSS_Console("All processes completed.\n");	
+
 } /* finish */
 
 /* ------------------------------------------------------------------------
@@ -327,7 +330,7 @@ int join(int *status)
     if(Current->deadChildQueue.size == 0)
     {
         if(DEBUG && debugflag)
-            USLOSS_Console("join(): pid %d blocked at priority %d \n\n", Current->pid, Current->priority - 1);
+            USLOSS_Console("join(): pid %d blocked at priority %d \n", Current->pid, Current->priority - 1);
         block(JBLOCKED);
     }
 
@@ -340,7 +343,7 @@ int join(int *status)
     *status = child->quitStatus;
 
     if(DEBUG && debugflag)
-        USLOSS_Console("join(): got child pid = %d, quit status = %d\n\n", childPid, *status);
+        USLOSS_Console("join(): got child pid = %d, quit status = %d\n", childPid, *status);
 
     // cleanup mess
     cleanProc(childPid);
@@ -373,8 +376,10 @@ void quit(int status)
     checkForKernelMode("quit()");
     disableInterrupts();
  
-    if(DEBUG && debugflag)
-        USLOSS_Console("quit(): quitting process pid=%d, parent is %d\n", Current->pid, Current->parentPtr->pid);
+	USLOSS_Console("quit(): %d\n", status);
+
+	//if(DEBUG && debugflag)
+        //USLOSS_Console("quit(): quitting process pid=%d, parent is %d\n", Current->pid, Current->parentPtr->pid);
 
     USLOSS_Console("quit() 1\n");
     // print error message and halt if process with active children calls quit
@@ -544,9 +549,19 @@ static void checkDeadlock()
 {
 	// Video5.105 Is anyone else running
 	// If no processes running, terminate normal, if process running, terminate abnormal
-    //USLOSS_Halt(1);	// Normal termination
-    //USLOSS_Halt(0);	// Abnormal termination
 	
+	int noDeadLock = 0;
+	
+	for (int i = 0; i < MAXPROC; i++)
+	{
+		if (ProcTable[i].status != QUIT)
+			noDeadLock = 1;
+	}
+	if (noDeadLock == 1)
+		USLOSS_Halt(0);	// Abnormal termination	
+	else
+		USLOSS_Halt(1);	// Normal termination
+
 } /* checkDeadlock */
 
 
@@ -843,9 +858,19 @@ int isZapped(void)
 
 
 /* clockHandler increments the slice time by 20 milliseconds every interrupt */
-void clockHandler(void)
+void clockHandler(int dev, void *arg)
 {
-	Current->sliceTime += 20;
+/* 	int result;
+
+	// USLOSS_CLOCK returns time in Microseconds
+	result = USLOSS_CLOCK(); 
+
+	
+	// Current->sliceTime += 20;
+	clockInterruptCount += 1;
+    USLOSS_Console("clockHandler(): Clock interrupt count %d\n", clockInterruptCount);
+ */
+	
 } 
 
 
@@ -911,7 +936,6 @@ int readtime(void)
 	
 	return time;
 }
-
 
 
 
