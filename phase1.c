@@ -34,7 +34,6 @@ void clockHandler();
 int readTime(); 
 
 
-
 /* -------------------------- Globals ------------------------------------- */
 
 // Patrick's debugging global variable...
@@ -339,6 +338,7 @@ int join(int *status)
 
     // get the earliest dead child
     procPtr child = dequeue(&Current->deadChildQueue);
+	USLOSS_Console("Debug after dequeue %d\n", child); 
     int childPid = child->pid;
     *status = child->quitStatus;
 
@@ -785,39 +785,46 @@ void removeChild(procQueue *q, procPtr child)
 }
 
 /* Dump Processes */
-/*void dumpProcesses(void)
+void dumpProcesses(void)
 {
+	USLOSS_Console("PID\tParent\tPriority\tStatus\t\t# Kids\tCPUtime\tName\n");
+
 	int i;
 	for(i = 0; i < MAXPROC; i++)
 	{
 		if(ProcTable[i].status != QUIT)
 		{
-			char info[200];
+			//char info[200];
 			char *status;
 			//I forgot which values matched to which status so I guessed.
 			if(ProcTable[i].status == READY)
-				status = "ready";
+				status = "READY";
 			else if(ProcTable[i].status == RUNNING)
-				status = "running";
+				status = "RUNNING";
 			else if(ProcTable[i].status == BLOCKED)
-				status = "blocked";
+				status = "BLOCKED";
+			else if(ProcTable[i].status == EMPTY)
+				status = "EMPTY"; 
 
-			procQueue child = ProcTable[i].childQueue;
-			int childCount = 0;
-			while(child->head != NULL)
+			int childCount = 0; 
+			if(ProcTable[i].childQueue.head != NULL)
 			{
-				childCount++;
-				//child = child->head->nextSiblingPtr;  
+				procPtr child = ProcTable[i].childQueue.head; 
+				while(child->nextSiblingPtr != NULL)
+				{
+					USLOSS_Console("Test in Child %d", childCount);  
+					childCount++; 
+					child = child->nextSiblingPtr; 
+				}
 			}
 			//Prints to the string.
-			snprintf(info, sizeof info, 
-				"Process Name: %s\nPID: %d\nParent's PID: %d\nPriority: %d\nProcess status: %s\nNumber of Children: %d\nTime Consumed: %d\n\n"
-				, ProcTable[i].name, i, ProcTable[i].parentPtr->pid, ProcTable[i].priority, status, childCount, ProcTable[i].cpuTime);
-			//Just sort of modeled the stub in usloss.h, not sure if "..." is needed or denotes something else
-			USLOSS_Console(info);
+			USLOSS_Console("%d\t%d\t%d\t\t%s\t\t%d\t%d\t%s\n"
+				, i, ProcTable[i].parentPtr->pid, ProcTable[i].priority, status, childCount, ProcTable[i].cpuTime, ProcTable[i].name);
+				
+			//USLOSS_Console(info);
 		}
 	}
-} */
+}
 
   
 /* getpid returns pid of calling process */
@@ -826,7 +833,6 @@ int getpid(void)
 	return Current->pid; 		
 }
 
- 
 
 /* Zap a process with the passed PID */
 int zap(int pid)
@@ -846,7 +852,8 @@ int zap(int pid)
 	
 	return 1;  
 }
-   
+
+  
 /* Is current process Zapped */
 int isZapped(void) 
 {
@@ -875,7 +882,6 @@ void clockHandler(int dev, void *arg)
 
 
 /* Requirement: 3.1 Support for Later Phases */
-
 int blockMe(int block_status) // newStatus
 {
 	return 0; 
@@ -915,7 +921,6 @@ void timeSlice(void)
 }
 
 /* Requirements: 3.2 CPU Scheduling, USLOSS 4.1 Clock Device */
-
 /* Readtime returns CPU time in Milliseconds used by the current process */
 int readtime(void)
 {
