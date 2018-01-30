@@ -651,7 +651,7 @@ void cleanProc(int pid)
     
     ProcTable[i].zapped = 0;
     ProcTable[i].timeStarted = -1;
-    ProcTable[i].cpuTime = 0;
+    ProcTable[i].cpuTime = -1;	// djf
     ProcTable[i].sliceTime = 0;
     ProcTable[i].name[0] = 0;
 
@@ -805,21 +805,35 @@ void dumpProcesses(void)
 				status = "BLOCKED";
 			else if(ProcTable[i].status == EMPTY)
 				status = "EMPTY"; 
+			else if(ProcTable[i].status == JBLOCKED)
+				status = "JOIN_BLOCKED";
+			else if(ProcTable[i].status == ZBLOCKED)
+				status = "ZAP_BLOCKED";
+			else if(ProcTable[i].status == BLOCKED)
+				status = "BLOCKED"; 
 
 			int childCount = 0; 
 			if(ProcTable[i].childQueue.head != NULL)
 			{
+				childCount++;
 				procPtr child = ProcTable[i].childQueue.head; 
 				while(child->nextSiblingPtr != NULL)
 				{
-					USLOSS_Console("Test in Child %d", childCount);  
+	
 					childCount++; 
 					child = child->nextSiblingPtr; 
 				}
 			}
+			int parentPid; 
+			
+			if (ProcTable[i].parentPtr == NULL)
+				parentPid = -2; // djf
+			else
+				parentPid = ProcTable[i].parentPtr->pid; 
+			
 			//Prints to the string.
 			USLOSS_Console("%d\t%d\t%d\t\t%s\t\t%d\t%d\t%s\n"
-				, i, ProcTable[i].parentPtr->pid, ProcTable[i].priority, status, childCount, ProcTable[i].cpuTime, ProcTable[i].name);
+				, ProcTable[i].pid, parentPid, ProcTable[i].priority, status, childCount, ProcTable[i].cpuTime, ProcTable[i].name); // djf
 				
 			//USLOSS_Console(info);
 		}
