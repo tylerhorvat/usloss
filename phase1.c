@@ -843,6 +843,9 @@ int zap(int pid)
 		USLOSS_Halt(1);
 	}
 	ProcTable[pid].zapped = 1; 
+	
+	enqueue(&ProcTable[pid].parentPtr->zapQueue, &ProcTable[pid]); 
+	
 	while(ProcTable[pid].status != QUIT);
 	
 	if(Current->zapped == 1)
