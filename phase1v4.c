@@ -31,7 +31,7 @@ procPtr peek(procQueue *);
 int block(int);
 void removeChild(procQueue *, procPtr);
 void clockHandler();
-int readTime(); 
+int readtime(); 
 
 
 /* -------------------------- Globals ------------------------------------- */
@@ -133,8 +133,7 @@ void finish(int argc, char *argv[])
 {
     if (DEBUG && debugflag)
         USLOSS_Console("in finish...\n");
-
-    USLOSS_Console("All processes completed.\n");	
+	
 
 } /* finish */
 
@@ -234,12 +233,12 @@ int fork1(char *name, int (*startFunc)(char *), char *arg, int stacksize, int pr
     // for future phase(s)
     p1_fork(ProcTable[procSlot].pid);
 
-    USLOSS_Console("pid: %d\n", Current->pid);
+	if (DEBUG && debugflag)
+		USLOSS_Console("pid: %d\n", Current->pid);
 
     // More stuff to do here...
     // add process to parent's (current's) list of children, if parent exists
     if (Current->pid > -1) {
-
         enqueue(&Current->childQueue, &ProcTable[procSlot]);
         ProcTable[procSlot].parentPtr = Current; //set parent pointer
     }
@@ -256,7 +255,8 @@ int fork1(char *name, int (*startFunc)(char *), char *arg, int stacksize, int pr
     //enable interrupts for the parent
     enableInterrupts();
 
-    USLOSS_Console("fork1(): ret val=%d\n", ProcTable[procSlot].pid);
+	if (DEBUG && debugflag)
+		USLOSS_Console("fork1(): ret val=%d\n", ProcTable[procSlot].pid);
 
     return ProcTable[procSlot].pid; //return child's pid
 
@@ -507,10 +507,12 @@ void dispatcher(void)
     {
         if(old->pid > -1)
             //old->cpuTime += USLOSS_DeviceInput(USLOSS_CLOCK_MS) - old->timeStarted;
-            //old->cpuTime += (int)readTime() - old->timeStarted;
+            old->cpuTime += readtime() - old->timeStarted;
 			
         Current->sliceTime = 0;
-        //Current->timeStarted = USLOSS_DeviceInput(USLOSS_CLOCK_MS);
+		
+		//        Current->timeStarted = USLOSS_DeviceInput(USLOSS_CLOCK_MS);
+        Current->timeStarted = readtime(); 
     }
 
     p1_switch(old->pid, Current->pid);
@@ -558,9 +560,15 @@ static void checkDeadlock()
 			noDeadLock = 1;
 	}
 	if (noDeadLock == 1)
-		USLOSS_Halt(0);	// Abnormal termination	
+	{
+		USLOSS_Console("All processes completed.\n");
+		USLOSS_Halt(0);	// Normal termination	
+	}
 	else
-		USLOSS_Halt(1);	// Normal termination
+	{
+		//USLOSS_Console("All processes completed.\n");
+		USLOSS_Halt(1);	// Abnormal termination
+	}
 
 } /* checkDeadlock */
 
@@ -787,7 +795,7 @@ void removeChild(procQueue *q, procPtr child)
 /* Dump Processes */
 void dumpProcesses(void)
 {
-	USLOSS_Console("PID\tParent\tPriority\tStatus\t\t# Kids\tCPUtime\tName\n");
+	USLOSS_Console("PID\tParent\tPriority\tStatus\t\t\t# Kids\tCPUtime\tName\n");
 
 	int i;
 	for(i = 0; i < MAXPROC; i++)
@@ -832,7 +840,7 @@ void dumpProcesses(void)
 				parentPid = ProcTable[i].parentPtr->pid; 
 			
 			//Prints to the string.
-			USLOSS_Console("%d\t%d\t%d\t\t%s\t\t%d\t%d\t%s\n"
+			USLOSS_Console("%d\t%d\t%d\t\t%s\t\t\t%d\t%d\t%s\n"
 				, ProcTable[i].pid, parentPid, ProcTable[i].priority, status, childCount, ProcTable[i].cpuTime, ProcTable[i].name); // djf
 				
 			//USLOSS_Console(info);
@@ -853,7 +861,7 @@ int zap(int pid)
 {	
 	if(ProcTable[pid].pid == Current->pid || ProcTable[pid].pid == -1) 
 	{
-		USLOSS_Console("zap(): Current process tried to kill itself or attempted to zap a nonexistant process\n");
+		USLOSS_Console("zap(): Current process tried to kill itself or attempted to zap a nonexistant process. Halting . . . \n");
 		USLOSS_Halt(1);
 	}
 	ProcTable[pid].zapped = 1; 
@@ -884,17 +892,21 @@ int isZapped(void)
 /* clockHandler increments the slice time by 20 milliseconds every interrupt */
 void clockHandler(int dev, void *arg)
 {
-/* 	int result;
+	//int result;
 
 	// USLOSS_CLOCK returns time in Microseconds
-	result = USLOSS_CLOCK(); 
-
+	//result = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
+	
 	
 	// Current->sliceTime += 20;
 	clockInterruptCount += 1;
     USLOSS_Console("clockHandler(): Clock interrupt count %d\n", clockInterruptCount);
- */
-	
+	if(clockInterruptCount > 4)
+	{
+		dispatcher(); 
+		clockInterruptCount = 0; 
+		return; 
+	}
 } 
 
 
@@ -943,10 +955,13 @@ int readtime(void)
 {
 	int result;
 	int unit = 0;
-	int status;	// Register contains time in Microseconds since USLOSS started running
-	int time;
+	int status = 0;	// Register contains time in Microseconds since USLOSS started running
+	int time = 0;
 	
 	result = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
+	
+	if (DEBUG && debugflag)
+		USLOSS_Console("readtime %d\n", status);
 	
 	if(result == USLOSS_DEV_INVALID) 
 	{
@@ -956,7 +971,7 @@ int readtime(void)
 	// Convert microseconds to milliseconds
 	time = status/1000;
 	
-	return time;
+	return status;
 }
 
 
