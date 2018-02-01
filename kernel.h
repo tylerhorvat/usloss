@@ -1,7 +1,7 @@
 /* Patrick's DEBUG printing constant... */
 #define DEBUG 1
 #define READY 1
-#define QUIT 0
+#define QUIT 4
 #define BLOCKED 2
 #define RUNNING 3 
 

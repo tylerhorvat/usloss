@@ -541,7 +541,8 @@ void disableInterrupts()
     if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) 
     {
         //not in kernel mode
-        USLOSS_Console("Kernel Error: Not in kernel mode, may not disable interrupts\n");
+        if(DEBUG && debugflag)
+            USLOSS_Console("Kernel Error: Not in kernel mode, may not disable interrupts\n");
         USLOSS_Halt(1);
     }
     else 
@@ -568,7 +569,8 @@ void enableInterrupts()
     //turn interrupts on iff in kernel mode
     if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) 
     {
-        USLOSS_Console("Kernel Error: Not in kernel mode, may not enable interrupts\n");
+        if(DEBUG && debugflag)
+            USLOSS_Console("Kernel Error: Not in kernel mode, may not enable interrupts\n");
         USLOSS_Halt(1);
     }
     else
@@ -773,26 +775,27 @@ void dumpProcesses(void)
     int i;
     USLOSS_Console("%-6s%-8s%-16s%-16s%-8s%-8s%s\n", "PID", "Parent",
            "Priority", "Status", "# Kids", "CPUtime", "Name");
-    for (i = 0; i < MAXPROC; i++) {
-    int p;
-    char s[20];
+    for (i = 0; i < MAXPROC; i++) 
+    {
+        int p;
+        char s[20];
 
-    if (ProcTable[i].parentPtr != NULL) {
-        p = ProcTable[i].parentPtr->pid;
+        if (ProcTable[i].parentPtr != NULL) {
+            p = ProcTable[i].parentPtr->pid;
+            if (ProcTable[i].status > 10)
+                sprintf(s, "%d", ProcTable[i].status);
+        }
+        else
+            p = -1;
         if (ProcTable[i].status > 10)
-            sprintf(s, "%d", ProcTable[i].status);
-    }
-    else
-        p = -1;
-    if (ProcTable[i].status > 10)
-        USLOSS_Console(" %-7d%-9d%-13d%-18s%-9d%-5d%s\n", ProcTable[i].pid, p,
-            ProcTable[i].priority, s, ProcTable[i].childQueue.size, ProcTable[i].cpuTime,
-            ProcTable[i].name);
-    else
-        USLOSS_Console(" %-7d%-9d%-13d%-18s%-9d%-5d%s\n", ProcTable[i].pid, p,
-            ProcTable[i].priority, statusNames[ProcTable[i].status],
-            ProcTable[i].childQueue.size, ProcTable[i].cpuTime, ProcTable[i].name);
-    }    
+            USLOSS_Console(" %-7d%-9d%-13d%-18s%-9d%-5d%s\n", ProcTable[i].pid, p,
+                ProcTable[i].priority, s, ProcTable[i].childQueue.size, ProcTable[i].cpuTime,
+                ProcTable[i].name);
+        else
+            USLOSS_Console(" %-7d%-9d%-13d%-18s%-9d%-5d%s\n", ProcTable[i].pid, p,
+                ProcTable[i].priority, statusNames[ProcTable[i].status],
+                ProcTable[i].childQueue.size, ProcTable[i].cpuTime, ProcTable[i].name);
+    }  
 }
 
   
@@ -840,7 +843,9 @@ int zap(int pid)
     }
 
     enqueue(&process->zapQueue, Current);
+    Current->zapped = 1;
     block(ZBLOCKED);
+
 
     enableInterrupts();
     if(Current->zapQueue.size > 0)
@@ -852,10 +857,8 @@ int zap(int pid)
 /* Is current process Zapped */
 int isZapped(void) 
 {
-	if(Current->zapped == 1)
-		return 1;
-	else
-		return 0; 
+    checkForKernelMode("isZapped()");
+    return (Current->zapQueue.size > 0);
 }
 
 
