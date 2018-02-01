@@ -1,10 +1,9 @@
 /* ------------------------------------------------------------------------
+q
    phase1.c
-
    University of Arizona
    Computer Science 452
    Fall 2015
-
    ------------------------------------------------------------------------ */
 
 #include "phase1.h"
@@ -32,6 +31,7 @@ int block(int);
 void removeChild(procQueue *, procPtr);
 void clockHandler();
 int readTime(); 
+int getTime();
 
 
 /* -------------------------- Globals ------------------------------------- */
@@ -69,7 +69,7 @@ int clockInterruptCount = 0;
 void startup(int argc, char *argv[])
 {
     //test if in kernel mode, halt if in user mode
-    checkForKernelMode("startup()\n");
+    checkForKernelMode("startup()\n");   
 
     int i;
     int result; /* value returned by call to fork1() */
@@ -89,6 +89,9 @@ void startup(int argc, char *argv[])
     if (DEBUG && debugflag)
         USLOSS_Console("startup(): initializing ready list\n");
 
+    for (i = 0; i < SENTINELPRIORITY; i++)
+        ReadyList[i].type = READYLIST;
+    
     // Initialize the illegalInstruction interrupt handler
     USLOSS_IntVec[USLOSS_ILLEGAL_INT] = illegalInstructionHandler;
 
@@ -134,8 +137,6 @@ void finish(int argc, char *argv[])
     if (DEBUG && debugflag)
         USLOSS_Console("in finish...\n");
 
-    USLOSS_Console("All processes completed.\n");	
-
 } /* finish */
 
 /* ------------------------------------------------------------------------
@@ -146,7 +147,8 @@ void finish(int argc, char *argv[])
    Parameters - the process procedure address, the size of the stack and
                 the priority to be assigned to the child process.
    Returns - the process id of the created child or
-				-1 if no child could be created or 
+	q
+			-1 if no child could be created or 
 				if priority is not between max and min priority or
 				-2 if stack size is too small
    Side Effects - ReadyList is changed, ProcTable is changed, Current
@@ -234,8 +236,6 @@ int fork1(char *name, int (*startFunc)(char *), char *arg, int stacksize, int pr
     // for future phase(s)
     p1_fork(ProcTable[procSlot].pid);
 
-    USLOSS_Console("pid: %d\n", Current->pid);
-
     // More stuff to do here...
     // add process to parent's (current's) list of children, if parent exists
     if (Current->pid > -1) {
@@ -255,8 +255,6 @@ int fork1(char *name, int (*startFunc)(char *), char *arg, int stacksize, int pr
     
     //enable interrupts for the parent
     enableInterrupts();
-
-    USLOSS_Console("fork1(): ret val=%d\n", ProcTable[procSlot].pid);
 
     return ProcTable[procSlot].pid; //return child's pid
 
@@ -334,11 +332,10 @@ int join(int *status)
     }
 
     if(DEBUG && debugflag)
-        USLOSS_Console("join(): pid %d unblocked, dead child queue size = %d\n", Current->pid, Current->deadChildQueue.size);
+        USLOSS_Console("join(): pid %d unblocked, dead child queue size = %d, current: %s\n", Current->pid, Current->deadChildQueue.size, Current->name);
 
     // get the earliest dead child
     procPtr child = dequeue(&Current->deadChildQueue);
-	USLOSS_Console("Debug after dequeue %d\n", child); 
     int childPid = child->pid;
     *status = child->quitStatus;
 
@@ -355,7 +352,6 @@ int join(int *status)
 
     enableInterrupts();
 
-    USLOSS_Console("join() %d\n", childPid);
     return childPid;
 
 } /* join */ 
@@ -375,13 +371,7 @@ void quit(int status)
     // test if in kernel mode, halt if in user mode
     checkForKernelMode("quit()");
     disableInterrupts();
- 
-	USLOSS_Console("quit(): %d\n", status);
 
-	//if(DEBUG && debugflag)
-        //USLOSS_Console("quit(): quitting process pid=%d, parent is %d\n", Current->pid, Current->parentPtr->pid);
-
-    USLOSS_Console("quit() 1\n");
     // print error message and halt if process with active children calls quit
     // loop through children to find if any are active
     procPtr childPtr = peek(&Current->childQueue);
@@ -394,8 +384,6 @@ void quit(int status)
         }
         childPtr = childPtr->nextSiblingPtr;
     }
-
-    USLOSS_Console("quit() 2\n");
 
     Current->status = QUIT;
     Current->quitStatus = status;
@@ -412,8 +400,6 @@ void quit(int status)
         }
     }
 
-    USLOSS_Console("quit() 3\n");
-
     // unblock processes that zap'd this process
     while(Current->zapQueue.size > 0)
     {
@@ -421,8 +407,6 @@ void quit(int status)
         zapper->status = READY;
         enqueue(&ReadyList[zapper->priority-1], zapper);
     }
- 
-    USLOSS_Console("quit() 4\n");
 
     // remove any dead children current has from the process table
     while(Current->deadChildQueue.size > 0)
@@ -431,19 +415,13 @@ void quit(int status)
         cleanProc(child->pid);
     }
 
-    USLOSS_Console("quit() 5\n");
-
     // delete current if it has no parent
     if(Current->parentPtr == NULL)
         cleanProc(Current->pid);
 
-    USLOSS_Console("quit() 6\n");
-
     p1_quit(Current->pid);
 
     dispatcher(); //call dispatcher to run next process
-
-    USLOSS_Console("quit() 7\n");
 
 }  /* quit */
  
@@ -495,8 +473,6 @@ void dispatcher(void)
     if(DEBUG && debugflag)
         USLOSS_Console("dispatcher(): next process is %s\n", nextProcess->name);
 
-
-
     // update current
     procPtr old = Current;
     Current = nextProcess;
@@ -506,11 +482,10 @@ void dispatcher(void)
     if(old != Current) 
     {
         if(old->pid > -1)
-            //old->cpuTime += USLOSS_DeviceInput(USLOSS_CLOCK_MS) - old->timeStarted;
-            //old->cpuTime += (int)readTime() - old->timeStarted;
+            old->cpuTime += getTime() - old->timeStarted;
 			
         Current->sliceTime = 0;
-        //Current->timeStarted = USLOSS_DeviceInput(USLOSS_CLOCK_MS);
+        Current->timeStarted = getTime();
     }
 
     p1_switch(old->pid, Current->pid);
@@ -535,7 +510,8 @@ int sentinel (char *dummy)
 {
     if (DEBUG && debugflag)
         USLOSS_Console("sentinel(): called\n");
-    while (1) {
+    while (1) 
+    {
         checkDeadlock();
         USLOSS_WaitInt();
     }
@@ -547,21 +523,14 @@ int sentinel (char *dummy)
 /* check to determine if deadlock has occurred... */
 static void checkDeadlock()
 {
-	// Video5.105 Is anyone else running
-	// If no processes running, terminate normal, if process running, terminate abnormal
-	
-	int noDeadLock = 0;
-	
-	for (int i = 0; i < MAXPROC; i++)
-	{
-		if (ProcTable[i].status != QUIT)
-			noDeadLock = 1;
-	}
-	if (noDeadLock == 1)
-		USLOSS_Halt(0);	// Abnormal termination	
-	else
-		USLOSS_Halt(1);	// Normal termination
+    if (numProcs > 1)
+    {
+        USLOSS_Console("checkDeadlock(): numProc = %d. Only Sentinel should be left. Halting...\n", numProcs);
+        USLOSS_Halt(1);
+    }
 
+    USLOSS_Console("All processes completed.\n");
+    USLOSS_Halt(0);
 } /* checkDeadlock */
 
 
@@ -572,7 +541,8 @@ void disableInterrupts()
     if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) 
     {
         //not in kernel mode
-        USLOSS_Console("Kernel Error: Not in kernel mode, may not disable interrupts\n");
+        if(DEBUG && debugflag)
+            USLOSS_Console("Kernel Error: Not in kernel mode, may not disable interrupts\n");
         USLOSS_Halt(1);
     }
     else 
@@ -599,7 +569,8 @@ void enableInterrupts()
     //turn interrupts on iff in kernel mode
     if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) 
     {
-        USLOSS_Console("Kernel Error: Not in kernel mode, may not enable interrupts\n");
+        if(DEBUG && debugflag)
+            USLOSS_Console("Kernel Error: Not in kernel mode, may not enable interrupts\n");
         USLOSS_Halt(1);
     }
     else
@@ -624,7 +595,6 @@ void checkForKernelMode(char *func)
         USLOSS_Console("%s: called while in user mode, by process %d. Halting...\n", 
         func, Current->pid);
     }
-
 }
 
 void cleanProc(int pid) 
@@ -651,7 +621,7 @@ void cleanProc(int pid)
     
     ProcTable[i].zapped = 0;
     ProcTable[i].timeStarted = -1;
-    ProcTable[i].cpuTime = -1;	// djf
+    ProcTable[i].cpuTime = -1;
     ProcTable[i].sliceTime = 0;
     ProcTable[i].name[0] = 0;
 
@@ -688,8 +658,10 @@ void enqueue(procQueue *q, procPtr p)
         else if(q->type == CHILDREN)
             q->tail->nextSiblingPtr = p;
         else if(q->type == ZAP)
-            q->tail->nextDeadSibling = p;
-      
+            q->tail->nextZapPtr = p;
+        else
+            q->tail->nextDeadSibling = p;      
+        
         q->tail = p;
     }
     q->size++;
@@ -735,6 +707,8 @@ procPtr peek(procQueue *q)
 /* block the new status */
 int block(int newStatus) 
 {
+    
+
     if(DEBUG && debugflag)
         USLOSS_Console("block(): called\n");
 
@@ -787,57 +761,41 @@ void removeChild(procQueue *q, procPtr child)
 /* Dump Processes */
 void dumpProcesses(void)
 {
-	USLOSS_Console("PID\tParent\tPriority\tStatus\t\t# Kids\tCPUtime\tName\n");
+    checkForKernelMode("dumpProcesses()");
 
-	int i;
-	for(i = 0; i < MAXPROC; i++)
-	{
-		if(ProcTable[i].status != QUIT)
-		{
-			//char info[200];
-			char *status;
-			//I forgot which values matched to which status so I guessed.
-			if(ProcTable[i].status == READY)
-				status = "READY";
-			else if(ProcTable[i].status == RUNNING)
-				status = "RUNNING";
-			else if(ProcTable[i].status == BLOCKED)
-				status = "BLOCKED";
-			else if(ProcTable[i].status == EMPTY)
-				status = "EMPTY"; 
-			else if(ProcTable[i].status == JBLOCKED)
-				status = "JOIN_BLOCKED";
-			else if(ProcTable[i].status == ZBLOCKED)
-				status = "ZAP_BLOCKED";
-			else if(ProcTable[i].status == BLOCKED)
-				status = "BLOCKED"; 
+    const char *statusNames[7];
+    statusNames[EMPTY] = "EMPTY";
+    statusNames[READY] = "READY";
+    statusNames[RUNNING] = "RUNNING";
+    statusNames[JBLOCKED] = "JOIN_BLOCK";
+    statusNames[QUIT] = "QUIT";
+    statusNames[ZBLOCKED] = "ZAP_BLOCK";
 
-			int childCount = 0; 
-			if(ProcTable[i].childQueue.head != NULL)
-			{
-				childCount++;
-				procPtr child = ProcTable[i].childQueue.head; 
-				while(child->nextSiblingPtr != NULL)
-				{
-	
-					childCount++; 
-					child = child->nextSiblingPtr; 
-				}
-			}
-			int parentPid; 
-			
-			if (ProcTable[i].parentPtr == NULL)
-				parentPid = -2; // djf
-			else
-				parentPid = ProcTable[i].parentPtr->pid; 
-			
-			//Prints to the string.
-			USLOSS_Console("%d\t%d\t%d\t\t%s\t\t%d\t%d\t%s\n"
-				, ProcTable[i].pid, parentPid, ProcTable[i].priority, status, childCount, ProcTable[i].cpuTime, ProcTable[i].name); // djf
-				
-			//USLOSS_Console(info);
-		}
-	}
+    //PID parent priority status
+    int i;
+    USLOSS_Console("%-6s%-8s%-16s%-16s%-8s%-8s%s\n", "PID", "Parent",
+           "Priority", "Status", "# Kids", "CPUtime", "Name");
+    for (i = 0; i < MAXPROC; i++) 
+    {
+        int p;
+        char s[20];
+
+        if (ProcTable[i].parentPtr != NULL) {
+            p = ProcTable[i].parentPtr->pid;
+            if (ProcTable[i].status > 10)
+                sprintf(s, "%d", ProcTable[i].status);
+        }
+        else
+            p = -1;
+        if (ProcTable[i].status > 10)
+            USLOSS_Console(" %-7d%-9d%-13d%-18s%-9d%-5d%s\n", ProcTable[i].pid, p,
+                ProcTable[i].priority, s, ProcTable[i].childQueue.size, ProcTable[i].cpuTime,
+                ProcTable[i].name);
+        else
+            USLOSS_Console(" %-7d%-9d%-13d%-18s%-9d%-5d%s\n", ProcTable[i].pid, p,
+                ProcTable[i].priority, statusNames[ProcTable[i].status],
+                ProcTable[i].childQueue.size, ProcTable[i].cpuTime, ProcTable[i].name);
+    }  
 }
 
   
@@ -847,66 +805,114 @@ int getpid(void)
 	return Current->pid; 		
 }
 
+ 
 
 /* Zap a process with the passed PID */
 int zap(int pid)
-{	
-	if(ProcTable[pid].pid == Current->pid || ProcTable[pid].pid == -1) 
-	{
-		USLOSS_Console("zap(): Current process tried to kill itself or attempted to zap a nonexistant process\n");
-		USLOSS_Halt(1);
-	}
-	ProcTable[pid].zapped = 1; 
-	
-	enqueue(&ProcTable[pid].parentPtr->zapQueue, &ProcTable[pid]); 
-	
-	while(ProcTable[pid].status != QUIT);
-	
-	if(Current->zapped == 1)
-		return -1;
-	else if(ProcTable[pid].status == QUIT)
-		return 0; 	
-	
-	return 1;  
-}
+{
+    if(DEBUG && debugflag)
+        USLOSS_Console("zap(): called\n");
 
-  
+    // test if in kernel mode, halt if in user mode
+    checkForKernelMode("zap()");
+    disableInterrupts();
+
+    procPtr process;
+
+    if(Current->pid == pid)
+    {
+        USLOSS_Console("zap(): process %d tried to zap itself. Halting...\n", pid);
+        USLOSS_Halt(1);
+    }	
+
+    process = &ProcTable[pid % MAXPROC];
+
+    if (process->status == EMPTY || process->pid != pid)
+    {
+        USLOSS_Console("zap(): process being zapped does not exist.  Halting...\n");
+        USLOSS_Halt(1);
+    }
+
+    if(process->status == QUIT)
+    {
+        enableInterrupts();
+        if(Current->zapQueue.size > 0)
+            return -1;
+        else
+            return 0;
+    }
+
+    enqueue(&process->zapQueue, Current);
+    Current->zapped = 1;
+    block(ZBLOCKED);
+
+
+    enableInterrupts();
+    if(Current->zapQueue.size > 0)
+        return -1;
+
+    return 0; 
+}
+   
 /* Is current process Zapped */
 int isZapped(void) 
 {
-	if(Current->zapped == 1)
-		return 1;
-	else
-		return 0; 
+    checkForKernelMode("isZapped()");
+    return (Current->zapQueue.size > 0);
 }
 
 
 /* clockHandler increments the slice time by 20 milliseconds every interrupt */
 void clockHandler(int dev, void *arg)
 {
-/* 	int result;
+    static int count = 0;
+    count++;
+    if(DEBUG && debugflag)
+        USLOSS_Console("clockhandler called %d times\n", count);
 
-	// USLOSS_CLOCK returns time in Microseconds
-	result = USLOSS_CLOCK(); 
-
-	
-	// Current->sliceTime += 20;
-	clockInterruptCount += 1;
-    USLOSS_Console("clockHandler(): Clock interrupt count %d\n", clockInterruptCount);
- */
-	
+    timeSlice();	
 } 
 
 
 /* Requirement: 3.1 Support for Later Phases */
+
 int blockMe(int block_status) // newStatus
 {
-	return 0; 
+    if (DEBUG && debugflag)
+        USLOSS_Console("blockMe(): called\n:");
+
+    // test if in kernel mode, halt if in user mode
+    checkForKernelMode("blockMe()");
+    disableInterrupts();
+
+    if(block_status < 10)
+    {
+        USLOSS_Console("newStatus < 10\n");
+        USLOSS_Halt(1);
+    }
+
+    return block(block_status);
 }
 
 int unblockProc(int pid)
 {
-	return 0;
+    // test if in kernel mode, halt if in user mode
+    checkForKernelMode("unblockProc()");
+    disableInterrupts();
+
+    int i = pid % MAXPROC; // get process
+    if (ProcTable[i].pid != pid || ProcTable[i].status <= 10) // check that it exists
+        return -2;
+
+    // unblock
+    ProcTable[i].status = READY;
+    enqueue(&ReadyList[ProcTable[i].priority-1], &ProcTable[i]);
+    dispatcher();
+
+    if(Current->zapQueue.size > 1)
+        return -1;
+    
+    return 0;
 }
 
 /* readCurStartTime returns the time in microseconds which the currently executing process 
@@ -914,38 +920,57 @@ int unblockProc(int pid)
 */
 int readCurStartTime(void)
 {
-	int result;
-	int unit = 0;
-	int status;	// Register contains time in Microseconds since USLOSS started running
+    checkForKernelMode("readCurStartTime()");
+   return Current->timeStarted/1000;
+}
+
+
+
+
+int getTime(void)
+{
+    int result;
+    int unit = 0;
+    int status;	// Register contains time in Microseconds since USLOSS started running
 	
-	result = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
+    result = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
 	
-	if(result == USLOSS_DEV_INVALID) 
-	{
+    if(result == USLOSS_DEV_INVALID) 
+    {
         USLOSS_Console("realCurStartTime(): Clock device invalid.  Halting...\n");
         USLOSS_Halt(1);
-	}
+    }
 
-	return status;
+    return status;
 }
 
 void timeSlice(void)
 {
-	if (Current->sliceTime > 80) //currently executing process has exceeded 4*20=80 milliseconds.
-		dispatcher();
-	else
-		return;
+    if (DEBUG && debugflag)
+        USLOSS_Console("timeSlice(): called\n");
+
+    // test if in kernel mode, halt if in user mode
+    checkForKernelMode("timeSlice()");
+    disableInterrupts();
+
+    Current->sliceTime = getTime() - Current->timeStarted;
+    if (Current->sliceTime > TIMESLICE)
+    {
+        if (DEBUG && debugflag)
+            USLOSS_Console("timeSlice(): time slicing\n");
+        Current->sliceTime = 0;
+        dispatcher();
+    }
+    else
+        enableInterrupts();
 }
 
-/* Requirements: 3.2 CPU Scheduling, USLOSS 4.1 Clock Device */
 /* Readtime returns CPU time in Milliseconds used by the current process */
-int readtime(void)
+int readTime(void)
 {
 	int result;
 	int unit = 0;
-	int status;	// Register contains time in Microseconds since USLOSS started running
-	int time;
-	
+	int status;	// Register contains time in Microseconds since USLOSS started running	
 	result = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
 	
 	if(result == USLOSS_DEV_INVALID) 
@@ -954,36 +979,5 @@ int readtime(void)
         USLOSS_Halt(1);
 	}
 	// Convert microseconds to milliseconds
-	time = status/1000;
-	
-	return time;
+	return status /1000;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
