@@ -4,6 +4,8 @@ q
    University of Arizona
    Computer Science 452
    Fall 2015
+   Tyler Horvat
+   Jake Fritts 
    ------------------------------------------------------------------------ */
 
 #include "phase1.h"
