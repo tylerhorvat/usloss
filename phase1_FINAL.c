@@ -4,6 +4,8 @@ q
    University of Arizona
    Computer Science 452
    Fall 2015
+   Tyler Horvat
+   Jake Fritts 
    ------------------------------------------------------------------------ */
 
 #include "phase1.h"
@@ -525,7 +527,19 @@ int sentinel (char *dummy)
 } /* sentinel */
 
 
-/* check to determine if deadlock has occurred... */
+/* ------------------------------------------------------------------------
+   Name - checkDeadlock
+   Purpose - This function determines if all processes have quit; this is 
+			 normal termination of USLOSS and ends with USLOSS_Halt(0). 
+			 If checkDeadlock determines that there are process(es) other 
+			 than the sentinel process this is abnormal termination of 
+			 USLOSS and ends with USLOSS_Halt(1).
+   Parameters - none
+   Returns - nothing
+   Side Effects - Calls USLOSS_Halt(0) if no deadlock
+                  Calls USLOSS_Halt(1) if deadlock
+   ----------------------------------------------------------------------- */
+
 static void checkDeadlock()
 {
     if (numProcs > 1)
@@ -539,7 +553,14 @@ static void checkDeadlock()
 } /* checkDeadlock */
 
 
-/* Disable Interrupts */
+/* ------------------------------------------------------------------------
+   Name - disableInterrupts
+   Purpose - This function disables interrupts if in Kernel mode.
+   Parameters - none
+   Returns - nothing
+   Side Effects - Calls USLOSS_Halt(1) if not in Kernel mode.
+				  Calls USLOSS_Halt(1) if PSR is invalid
+   ----------------------------------------------------------------------- */
 void disableInterrupts()
 {	
     int result; 
@@ -567,7 +588,14 @@ void disableInterrupts()
     return;	
 }
 
-/* Enable Interrupts */
+/* ------------------------------------------------------------------------
+   Name - enableInterrupts
+   Purpose - This function enables interrupts if in Kernel mode.
+   Parameters - none
+   Returns - nothing
+   Side Effects - Calls USLOSS_Halt(1) if not in Kernel mode.
+				  Calls USLOSS_Halt(1) if PSR is invalid
+   ----------------------------------------------------------------------- */
 void enableInterrupts()
 {	
     int result; 
@@ -592,7 +620,14 @@ void enableInterrupts()
     return;
 }	
 
-/*function to check if in kernel mode, halts if not*/
+/* ------------------------------------------------------------------------
+   Name - checkForKernelMode
+   Purpose - This function checks if calling function is in kernel mode and 
+			 Halts if not.
+   Parameters - Calling function name
+   Returns - nothing
+   Side Effects - Calls USLOSS_Halt(1) if not in kernel mode.
+   ----------------------------------------------------------------------- */
 void checkForKernelMode(char *func) 
 {
     if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) 
@@ -602,6 +637,14 @@ void checkForKernelMode(char *func)
     }
 }
 
+/* ------------------------------------------------------------------------
+   Name - cleanProc
+   Purpose - This function initializes the procTable associated with the
+			 passed pid.
+   Parameters - pid
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 void cleanProc(int pid) 
 {
     checkForKernelMode("cleanProc()");
@@ -634,6 +677,14 @@ void cleanProc(int pid)
     enableInterrupts();
 }
 
+/* ------------------------------------------------------------------------
+   Name - initializeProcQueue
+   Purpose - This function initializes the procQueue
+			 passed pid.
+   Parameters - procQueue pointer and type
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 void initializeProcQueue(procQueue *p, int type) 
 {
     p->head = NULL;
@@ -650,6 +701,14 @@ void illegalInstructionHandler(int dev, void *arg)
 
 } /* illegalInstructionHandler */
 
+/* ------------------------------------------------------------------------
+   Name - enqueue
+   Purpose - This function adds the passed process to the back of the given 
+			 queue.
+   Parameters - procQueue pointer and process pointer
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 /* add the procPtr to the back of the given queue) */
 void enqueue(procQueue *q, procPtr p)
 {
@@ -672,6 +731,14 @@ void enqueue(procQueue *q, procPtr p)
     q->size++;
 }
 
+/* ------------------------------------------------------------------------
+   Name - dequeue
+   Purpose - This function removes the passed process from the front of the 
+			 given queue.
+   Parameters - procQueue pointer
+   Returns - procPtr of process at front of queue
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 /* Remove and return front of queue */
 procPtr dequeue(procQueue *q)
 {
@@ -700,6 +767,14 @@ procPtr dequeue(procQueue *q)
     return temp;
 }
 
+/* ------------------------------------------------------------------------
+   Name - peek
+   Purpose - This function removes the passed child process from the queue.
+   Parameters - procQueue pointer, child
+   Returns - Head of the queue if not NULL
+			 Null if head of queue is empty
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 /* Return the head of the given queue */
 procPtr peek(procQueue *q) 
 {
@@ -709,6 +784,14 @@ procPtr peek(procQueue *q)
     return q->head;
 }
 
+/* ------------------------------------------------------------------------
+   Name - block
+   Purpose - This function removes the passed child process from the queue.
+   Parameters - procQueue pointer, child
+   Returns - -1: If there are zapped processes
+			  0: If there are no zapped processes
+   Side Effects - Disables interrupts and calls dispatcher
+   ----------------------------------------------------------------------- */
 /* block the new status */
 int block(int newStatus) 
 {
@@ -733,6 +816,13 @@ int block(int newStatus)
     return 0;
 }
 
+/* ------------------------------------------------------------------------
+   Name - removeChild
+   Purpose - This function removes the passed child process from the queue.
+   Parameters - procQueue pointer, child
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 /* Remove the child process from the queue */
 void removeChild(procQueue *q, procPtr child)
 {
@@ -763,6 +853,17 @@ void removeChild(procQueue *q, procPtr child)
     }
 }
 
+/* ------------------------------------------------------------------------
+   Name - dumpProcesses
+   Purpose - This function prints process information to the console. For 
+			 each PCB in the process table, print (at a minimum), its PID, 
+			 parent’s PID, priority, process status (e.g. empty, running, 
+			 ready, blocked, etc.), number of children, CPU time consumed, 
+			 and name. No particular format is necessary.
+   Parameters - none
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 /* Dump Processes */
 void dumpProcesses(void)
 {
@@ -817,7 +918,13 @@ void dumpProcesses(void)
     }  
 }
 
-  
+/* ------------------------------------------------------------------------
+   Name - getpid
+   Purpose - This function returns the PID of the calling process.
+   Parameters - none
+   Returns - The PID of the calling process.
+   Side Effects - none
+   ----------------------------------------------------------------------- */  
 /* getpid returns pid of calling process */
 int getpid(void)
 {
@@ -825,7 +932,19 @@ int getpid(void)
 }
 
  
-
+/* ------------------------------------------------------------------------
+   Name - zap
+   Purpose - This operation marks a process pid as being zapped. Subsequent
+			 calls to isZapped by that process will return 1.
+			 zap does not return until the zapped process has called quit.
+			 The kernel should print an error message and call USLOSS_Halt(1)
+			 if a process tries to zap itself or attempts to zap a 
+			 nonexistent process.
+   Parameters - pid
+   Returns - -1: The calling process itself was zapped while in zap.
+			  0: The zapped process has called quit.
+   Side Effects - 
+   ----------------------------------------------------------------------- */
 /* Zap a process with the passed PID */
 int zap(int pid)
 {
@@ -872,7 +991,16 @@ int zap(int pid)
 
     return 0; 
 }
-   
+
+/* ------------------------------------------------------------------------
+   Name - isZapped
+   Purpose - This function checks if the calling process has been zapped 
+			 or not.
+   Parameters - none
+   Returns - 0: The calling process has not been zapped.
+			 1: The calling process has been zapped.
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 /* Is current process Zapped */
 int isZapped(void) 
 {
@@ -880,7 +1008,14 @@ int isZapped(void)
     return (Current->zapQueue.size > 0);
 }
 
-
+/* ------------------------------------------------------------------------
+   Name - clockHandler
+   Purpose - This function checks if the current process has exceeded its 
+			 time slice. Time slice is 80 milliseconds.
+   Parameters - Ignore the arg parameter; it is not used by the clock
+   Returns - nothing
+   Side Effects - Calls dispatcher() if necessary
+   ----------------------------------------------------------------------- */
 /* clockHandler increments the slice time by 20 milliseconds every interrupt */
 void clockHandler(int dev, void *arg)
 {
@@ -894,7 +1029,17 @@ void clockHandler(int dev, void *arg)
 
 
 /* Requirement: 3.1 Support for Later Phases */
-
+/* ------------------------------------------------------------------------
+   Name - blockMe
+   Purpose - This operation will block the calling process. newStatus is 
+			 the value used to indicate the status of the process in the 
+			 dumpProcesses command. newStatus must be greater than 10; if 
+			 it is not, then halt USLOSS with an appropriate error message.
+   Parameters - newStatus
+   Returns - -1: if process was zapped while blocked.
+			  0: otherwise
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 int blockMe(int block_status) // newStatus
 {
     if (DEBUG && debugflag)
@@ -913,6 +1058,20 @@ int blockMe(int block_status) // newStatus
     return block(block_status);
 }
 
+/* ------------------------------------------------------------------------
+   Name - unblockProc
+   Purpose - This operation unblocks process pid that had previously 
+			 blocked itself by calling blockMe. The status of that process
+			 is changed to READY, and it is put on the Ready List.
+   Parameters - pid
+   Returns - -2: if the indicated process was not blocked, does not exist, 
+				 is the current process, or is blocked on a status less than 
+				 or equal to 10. Thus, process that is zap-blocked or 
+				 join-blocked cannot be unblocked with this function call.
+			 -1: if the calling process was zapped.
+			  0: otherwise
+   Side Effects - Calls dispatcher()
+   ----------------------------------------------------------------------- */
 int unblockProc(int pid)
 {
     // test if in kernel mode, halt if in user mode
@@ -934,6 +1093,15 @@ int unblockProc(int pid)
     return 0;
 }
 
+/* ------------------------------------------------------------------------
+   Name - readCurStartTime
+   Purpose - Compute CPU time (in microseconds) at which the currently 
+			 executing process began its current time slice
+   Parameters - none
+   Returns - CPU time in microseconds
+   Side Effects - If clock device is invalid, print appropriate error
+				  and halt.
+   ----------------------------------------------------------------------- */
 /* readCurStartTime returns the time in microseconds which the currently executing process 
 	began its current time slice 
 */
@@ -944,7 +1112,13 @@ int readCurStartTime(void)
 }
 
 
-
+/* ------------------------------------------------------------------------
+   Name - getTime
+   Purpose - gets the time of the current clock
+   Parameters - none
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 
 int getTime(void)
 {
@@ -963,6 +1137,14 @@ int getTime(void)
     return status;
 }
 
+/* ------------------------------------------------------------------------
+   Name - timeSlice
+   Purpose - Call the dispatcher if the currently executing process has 
+			 exceeded its time slice; otherwise return.
+   Parameters - none
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 void timeSlice(void)
 {
     if (DEBUG && debugflag)
@@ -983,7 +1165,16 @@ void timeSlice(void)
     else
         enableInterrupts();
 }
-
+/* ------------------------------------------------------------------------
+   Name - readtime
+   Purpose - Computes CPU time (in milliseconds) used by the current
+             process. Uses USLOSS_DeviceInput to get the current time 
+			 from the USLOSS clock.
+   Parameters - none
+   Returns - CPU time in milliseconds
+   Side Effects - If clock device is invalid, print appropriate error
+				  and halt.
+   ----------------------------------------------------------------------- */
 /* Readtime returns CPU time in Milliseconds used by the current process */
 int readTime(void)
 {
