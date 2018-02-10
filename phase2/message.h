@@ -32,7 +32,7 @@ struct mailSlot {
     int       slotId;
     slotPtr   nextSlotPtr;
     char      message[MAX_MESSAGE];
-    int       messageSize;
+    int       msgSize;
     // other items as needed...
 };
 
@@ -53,7 +53,7 @@ struct mboxProc {
 #define USED 1
 
 // process status constants
-#define FULL_BOX 11;
+#define FULL_BOX 11
 #define NO_MESSAGES 12
 
 #define SLOTQUEUE 0
