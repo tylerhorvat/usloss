@@ -45,6 +45,8 @@ int numBoxes, numSlots;
 
 int nextMboxID = 0, nextSlotID = 0, nextProc = 0;
 
+// system call vector
+void (*systemCallVec[MAXSYSCALLS])(USLOSS_Sysargs *args);
 
 /* -------------------------- Functions ----------------------------------- */
 
@@ -93,6 +95,9 @@ int start1(char *arg)
     IOmailboxes[TERMBOX+3] = MboxCreate(0, sizeof(int));
     IOmailboxes[DISKBOX] = MboxCreate(0, sizeof(int));   // two disk units
     IOmailboxes[DISKBOX+1] = MboxCreate(0, sizeof(int));
+
+    for (i = 0; i < MAXSYSCALLS; i++)
+        systemCallVec[i] = nullsys;
 
     enableInterrupts();
 
@@ -222,24 +227,53 @@ void checkForKernelMode(char * name)
 
 void disableInterrupts()
 {
-    if ((USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0)
+    int result; 
+    if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) 
     {
-        USLOSS_Console("Kernel Error: Not in kernel mode, may not disable interrupts\n");
+        //not in kernel mode
+        if(DEBUG2 && debugflag2)
+            USLOSS_Console("Kernel Error: Not in kernel mode, may not disable interrupts\n");
         USLOSS_Halt(1);
     }
-    else
-        USLOSS_PsrSet(USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_INT);
+    else 
+    {
+        //in kernel mode
+       result = USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_INT );
+	   
+    }
+	
+    if (result == USLOSS_DEV_OK)
+        return;
+    else 
+    {
+        USLOSS_Console("PSR not valid\n");
+        USLOSS_Halt(1);		
+    }
+    return;
 }
 
 void enableInterrupts()
 {
-    if ((USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0)
+    int result; 
+    //turn interrupts on iff in kernel mode
+    if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0) 
     {
-        USLOSS_Console("Kernel Error: Not in kernel mode, may not enable interrupts\n");
+        if(DEBUG2 && debugflag2)
+            USLOSS_Console("Kernel Error: Not in kernel mode, may not enable interrupts\n");
         USLOSS_Halt(1);
     }
     else
-        USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
+    {
+       result = USLOSS_PsrSet( USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT );
+    }	
+    if (result == USLOSS_DEV_OK)
+        return;
+    else 
+    {
+        USLOSS_Console("PSR not valid\n");
+        USLOSS_Halt(1);	
+    }
+    return;
 }
 
 void initializeQueue(queue *q, int type) 
