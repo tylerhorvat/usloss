@@ -4,9 +4,20 @@
 #include "message.h"
 
 extern int debugflag2;
+#define CLOCKBOX 0
+#define DISKBOX 1
+#define TERMBOX 3
+
+extern void disableInterrupts(void);
+extern void enableInterrupts(void);
+extern void requireKernelMode(char *);
+
+int IOmailboxes[7]; // mboxIDs for the IO devices
+int IOblocked = 0; // number of processes blocked on IO mailboxes
+
 
 /* an error method to handle invalid syscalls */
-void nullsys(sysargs *args)
+void nullsys(USLOSS_Sysargs *args)
 {
     USLOSS_Console("nullsys(): Invalid syscall. Halting...\n");
     USLOSS_Halt(1);

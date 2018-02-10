@@ -13,11 +13,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <message.h>
+//#include "message.h"
+#include "handler.c"
 
 /* ------------------------- Prototypes ----------------------------------- */
 int start1 (char *);
-
+void disableInterrupts();
+void enableInterrupts();
+void checkForKernelMode(char *);
+void initializeQueue (queue*, int);
+void enqueue(queue*, void*);
+void *dequeue(queue*);
+void *peek(queue);
+void emptyBox(int);
+void emptySlot(int);
 
 /* -------------------------- Globals ------------------------------------- */
 
@@ -25,11 +34,16 @@ int debugflag2 = 0;
 
 // the mail boxes 
 mailbox MailBoxTable[MAXMBOX];
+mailSlot MailSlotTable[MAXSLOTS];
+mboxProc mboxProcTable[MAXPROC];
 
 // also need array of mail slots, array of function ptrs to system call 
 // handlers, ...
 
 
+int numBoxes, numSlots;
+
+int nextMboxID = 0, nextSlotID = 0, nextProc = 0;
 
 
 /* -------------------------- Functions ----------------------------------- */
@@ -50,11 +64,37 @@ int start1(char *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("start1(): at beginning\n");
 
+    checkForKernelMode("start1");
+
+    disableInterrupts();
+
     // Initialize the mail box table, slots, & other data structures.
+    int i;
+    for (i = 0; i < MAXMBOX; i++)
+        emptyBox(i);
+
+    for (i = 0; i < MAXSLOTS; i++)
+        emptySlot(i);
+
+    numBoxes = 0;
+    numSlots = 0;
 
     // Initialize USLOSS_IntVec and system call handlers,
+    USLOSS_IntVec[USLOSS_CLOCK_INT] = clockHandler2;
+    USLOSS_IntVec[USLOSS_DISK_INT] = diskHandler;
+    USLOSS_IntVec[USLOSS_TERM_INT] = termHandler;
+    USLOSS_IntVec[USLOSS_SYSCALL_INT] = syscallHandler;
 
     // allocate mailboxes for interrupt handlers.  Etc... 
+    IOmailboxes[CLOCKBOX] = MboxCreate(0, sizeof(int)); // one clock unit
+    IOmailboxes[TERMBOX] = MboxCreate(0, sizeof(int));  // four terminal units
+    IOmailboxes[TERMBOX+1] = MboxCreate(0, sizeof(int));
+    IOmailboxes[TERMBOX+2] = MboxCreate(0, sizeof(int));
+    IOmailboxes[TERMBOX+3] = MboxCreate(0, sizeof(int));
+    IOmailboxes[DISKBOX] = MboxCreate(0, sizeof(int));   // two disk units
+    IOmailboxes[DISKBOX+1] = MboxCreate(0, sizeof(int));
+
+    enableInterrupts();
 
     // Create a process for start2, then block on a join until start2 quits
     if (DEBUG2 && debugflag2)
@@ -80,7 +120,48 @@ int start1(char *arg)
    ----------------------------------------------------------------------- */
 int MboxCreate(int slots, int slot_size)
 {
-    return 0;
+    disableInterrupts();
+    checkForKernelMode("MboxCreate()");
+
+    // check for illegal arguments, or all mailboxes full
+    if (numBoxes == MAXMBOX || slots < 0 || slot_size < 0 || slot_size > MAX_MESSAGE)
+    {
+        if (DEBUG2 && debugflag2)
+            USLOSS_Console("MboxCreate(): illegal args or max boxes reached, returning -1\n");
+        return -1;
+
+    }
+
+    // find next available index
+    if (nextMboxID >= MAXMBOX || MailBoxTable[nextMboxID].status == ACTIVE) 
+    {
+        int i;
+        for (i = 0; i < MAXMBOX; i++)
+        {
+            if (MailBoxTable[i].status == INACTIVE)
+            {
+                nextMboxID = i;
+                break;
+            }
+        }
+    }
+
+    // get next mailbox
+    mailbox *box = &MailBoxTable[nextMboxID];
+
+    // initialize mailbox
+    box->mboxID = nextMboxID++;
+    box->numSlots = slots;
+    box->slotSize = slot_size;
+    box->status = ACTIVE;
+    initializeQueue(&box->slots, SLOTQUEUE);
+    initializeQueue(&box->blockedProcSend, PROCQUEUE);
+    initializeQueue(&box->blockedProcRec, PROCQUEUE);
+
+    numBoxes++;
+
+    enableInterrupts();
+    return box->mboxID;
 } /* MboxCreate */
 
 
@@ -97,7 +178,7 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     return 0;
 } /* MboxSend */
 
-
+ 
 /* ------------------------------------------------------------------------
    Name - MboxReceive
    Purpose - Get a msg from a slot of the indicated mailbox.
@@ -128,3 +209,134 @@ int check_io(void)
         USLOSS_Console("check_io(): called\n");
     return 0;
 } /* check_io */
+
+void checkForKernelMode(char * name) 
+{
+    if ((USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0)
+    {
+        USLOSS_Console("%s: called while in user mode, by process %d. Halting...\n",
+                        name, getpid());
+        USLOSS_Halt(1);
+    }
+}
+
+void disableInterrupts()
+{
+    if ((USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0)
+    {
+        USLOSS_Console("Kernel Error: Not in kernel mode, may not disable interrupts\n");
+        USLOSS_Halt(1);
+    }
+    else
+        USLOSS_PsrSet(USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_INT);
+}
+
+void enableInterrupts()
+{
+    if ((USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0)
+    {
+        USLOSS_Console("Kernel Error: Not in kernel mode, may not enable interrupts\n");
+        USLOSS_Halt(1);
+    }
+    else
+        USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
+}
+
+void initializeQueue(queue *q, int type) 
+{
+    q->head = NULL;
+    q->tail = NULL;
+    q->size = 0;
+    q->type = type;
+}
+
+
+void enqueue(queue *q, void *p)
+{
+    if (q->head == NULL && q->tail == NULL)
+    {
+       q->head = q->tail = p; 
+    }
+    else
+    {
+        if (q->type == SLOTQUEUE)
+            ((slotPtr)(q->tail))->nextSlotPtr = p;
+        else if (q->type == PROCQUEUE)
+            ((mboxProcPtr)(q->tail))->nextMboxProc = p;
+        q->tail = p;
+    }
+    q->size++;
+}
+
+void emptyBox(int i)
+{
+    MailBoxTable[i].mboxID = -1;
+    MailBoxTable[i].status = INACTIVE;
+    MailBoxTable[i].numSlots = -1;
+    MailBoxTable[i].slotSize = -1;
+}
+
+void emptySlot(int i)
+{
+    MailSlotTable[i].mboxID = -1;
+    MailSlotTable[i].status = EMPTY;
+    MailSlotTable[i].slotId = -1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
