@@ -1,0 +1,140 @@
+echo "Build phase1"
+echo "Making Test..."
+make clean
+make test00
+make test01
+make test02
+make test03
+make test04
+make test05
+make test06
+make test07
+make test08
+make test09
+make test10
+make test11
+make test12
+make test13
+make test14
+make test15
+make test16
+make test17
+make test18
+make test19
+make test20
+make test21
+make test22
+make test23
+make test24
+make test25
+make test26
+make test27
+make test28
+make test29
+make test30
+make test31
+make test32
+make test33
+make test34
+make test35
+make test36
+make test37
+make test38
+make test39
+make test40
+make test41
+make test42
+make test43
+make test44
+echo "Running Tests..."
+test00 > test00.txt
+test01 > test01.txt
+test02 > test02.txt
+test03 > test03.txt
+test04 > test04.txt
+test05 > test05.txt
+test06 > test06.txt
+test07 > test07.txt
+test08 > test08.txt
+test09 > test09.txt
+test10 > test10.txt
+test11 > test11.txt
+test12 > test12.txt
+test13 > test13.txt
+test14 > test14.txt
+test15 > test15.txt
+test16 > test16.txt
+test17 > test17.txt
+test18 > test18.txt
+test19 > test19.txt
+test20 > test20.txt
+test21 > test21.txt
+test22 > test22.txt
+test23 > test23.txt
+test24 > test24.txt
+test25 > test25.txt
+test26 > test26.txt
+test27 > test27.txt
+test28 > test28.txt
+test29 > test29.txt
+test30 > test30.txt
+test31 > test31.txt
+test32 > test32.txt
+test33 > test33.txt
+test34 > test34.txt
+test35 > test35.txt
+test36 > test36.txt
+test37 > test37.txt
+test38 > test38.txt
+test39 > test39.txt
+test35 > test40.txt
+test36 > test41.txt
+#test37 > test42.txt
+#test38 > test43.txt
+#test39 > test44.txt
+echo "Diff-ing Tests ..."
+diff -s test00.txt ./testResults/test00.txt
+diff -s test01.txt ./testResults/test01.txt
+diff -s test02.txt ./testResults/test02.txt
+diff -s test03.txt ./testResults/test03.txt
+diff -s test04.txt ./testResults/test04.txt
+diff -s test05.txt ./testResults/test05.txt
+diff -s test06.txt ./testResults/test06.txt
+diff -s test07.txt ./testResults/test07.txt
+diff -s test08.txt ./testResults/test08.txt
+diff -s test09.txt ./testResults/test09.txt
+diff -s test10.txt ./testResults/test10.txt
+diff -s test11.txt ./testResults/test11.txt
+diff -s test12.txt ./testResults/test12.txt
+diff -s test13.txt ./testResults/test13.txt
+diff -s test14.txt ./testResults/test14.txt
+diff -s test15.txt ./testResults/test15.txt
+diff -s test16.txt ./testResults/test16.txt
+diff -s test17.txt ./testResults/test17.txt
+diff -s test18.txt ./testResults/test18.txt
+diff -s test19.txt ./testResults/test19.txt
+diff -s test20.txt ./testResults/test20.txt
+diff -s test21.txt ./testResults/test21.txt
+diff -s test22.txt ./testResults/test22.txt
+diff -s test23.txt ./testResults/test23.txt
+diff -s test24.txt ./testResults/test24.txt
+diff -s test25.txt ./testResults/test25.txt
+diff -s test26.txt ./testResults/test26.txt
+diff -s test27.txt ./testResults/test27.txt
+diff -s test28.txt ./testResults/test28.txt
+diff -s test29.txt ./testResults/test29.txt
+diff -s test30.txt ./testResults/test30.txt
+diff -s test31.txt ./testResults/test31.txt
+diff -s test32.txt ./testResults/test32.txt
+diff -s test33.txt ./testResults/test33.txt
+diff -s test34.txt ./testResults/test34.txt
+diff -s test35.txt ./testResults/test35.txt
+diff -s test36.txt ./testResults/test36.txt
+diff -s test37.txt ./testResults/test37.txt
+diff -s test38.txt ./testResults/test38.txt
+diff -s test39.txt ./testResults/test39.txt
+diff -s test40.txt ./testResults/test40.txt
+diff -s test41.txt ./testResults/test41.txt
+diff -s test42.txt ./testResults/test42.txt
+diff -s test43.txt ./testResults/test43.txt
+diff -s test44.txt ./testResults/test44.txt
