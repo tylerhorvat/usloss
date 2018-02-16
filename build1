@@ -1,4 +1,4 @@
-echo "Build phase1"
+echo "Build phase2"
 echo "Making Test..."
 make clean
 make test00
@@ -38,9 +38,14 @@ make test33
 make test34
 make test35
 make test36
-#make test37
-#make test38
-#make test39
+make test37
+make test38
+make test39
+make test40
+make test41
+make test42
+make test43
+make test44
 echo "Running Tests..."
 test00 > test00.txt
 test01 > test01.txt
@@ -79,9 +84,14 @@ test33 > test33.txt
 test34 > test34.txt
 test35 > test35.txt
 test36 > test36.txt
-#test37 > test37.txt
-#test38 > test38.txt
-#test39 > test39.txt
+test37 > test37.txt
+test38 > test38.txt
+test39 > test39.txt
+test40 > test40.txt
+test41 > test41.txt
+test42 > test42.txt
+test43 > test43.txt
+test44 > test44.txt
 echo "Diff-ing Tests ..."
 diff -s test00.txt ./testResults/test00.txt
 diff -s test01.txt ./testResults/test01.txt
@@ -120,10 +130,11 @@ diff -s test33.txt ./testResults/test33.txt
 diff -s test34.txt ./testResults/test34.txt
 diff -s test35.txt ./testResults/test35.txt
 diff -s test36.txt ./testResults/test36.txt
-#diff -s test37.txt ./testResults/test37.txt
-#diff -s test38.txt ./testResults/test38.txt
-#diff -s test39.txt ./testResults/test39.txt
-
-
-
-
+diff -s test37.txt ./testResults/test37.txt
+diff -s test38.txt ./testResults/test38.txt
+diff -s test39.txt ./testResults/test39.txt
+diff -s test40.txt ./testResults/test40.txt
+diff -s test41.txt ./testResults/test41.txt
+diff -s test42.txt ./testResults/test42.txt
+diff -s test43.txt ./testResults/test43.txt
+diff -s test44.txt ./testResults/test44.txt
