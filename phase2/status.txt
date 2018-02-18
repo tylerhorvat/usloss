@@ -1,45 +1,45 @@
-test00 Pass
-test01 Pass
-test02 Pass
-test03 Pass
-test04 Pass
-test05 Pass
-test06 Pass
-test07 Pass
-test08 Pass
-test09 Pass
-test10 Pass
-test11 Pass
-test12
-test13
-test14
-test15 Pass
-test16 Pass
-test17 Pass
-test18 Pass
-test19 Pass
-test20
-test21 Pass
-test22 Pass
-test23 Pass
-test24 Pass
-test25 Pass
-test26 Pass
-test27 Pass
-test28
-test29 Pass
-test30 Pass
-test31 Pass
-test32
-test33 Pass
-test34 Pass
-test35 Pass
-test36
-test37
-test38
-test39 Pass
-test40
-test41
-test42
-test43
-test44 Pass
+test00 Pass x
+test01 Pass x 
+test02 Pass x
+test03 Pass x
+test04 Pass x
+test05 Pass x
+test06 Pass x
+test07 Pass x
+test08 Pass x
+test09 Pass x
+test10 Pass x
+test11 Pass x
+test12 conditional message error      
+test13 check deadlock 
+test14 check deadlock    
+test15 Pass x
+test16 Pass x
+test17 Pass x
+test18 Pass x
+test19 Pass x
+test20 conditional message error 
+test21 Pass x
+test22 Pass x
+test23 Pass x
+test24 Pass x
+test25 Pass x
+test26 Pass x
+test27 Pass x
+test28 conditional message     
+test29 Pass x
+test30 Pass x
+test31 Pass x
+test32 check deadlock
+test33 Pass x
+test34 Pass x
+test35 Pass x
+test36 syscall error. should not see message. 
+test37 syscall should not see message
+test38 syscall 
+test39 Pass x
+test40 FAILED has active children
+test41 conditional message error 
+test42 conditional message error
+test43 conditional message error 
+test44 Pass x
