@@ -136,7 +136,6 @@ int MboxCreate(int slots, int slot_size)
         if (DEBUG2 && debugflag2)
             USLOSS_Console("MboxCreate(): illegal args or max boxes reached, returning -1\n");
         return -1;
-
     }
 
     // find next available index
@@ -640,7 +639,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
 
 /* ------------------------------------------------------------------------
    Name - check_io
-   Purpose - Determine if there any processes blocked on any of the
+   Purpose - Determine if there are processes blocked on any of the
              interrupt mailboxes.
    Returns - 1 if one (or more) processes are blocked; 0 otherwise
    Side Effects - none.
@@ -652,8 +651,57 @@ int check_io(void)
 {
     if (DEBUG2 && debugflag2)
         USLOSS_Console("check_io(): called\n");
+		
     return 0;
 } /* check_io */
+
+/* ------------------------------------------------------------------------
+   Name - waitDevice
+   Purpose - 1) Provides results of i/o operations
+             2) Use MboxReceive on the appropriate mailbox
+   Returns - 
+   Side Effects - none.
+   ------------------------------------------------------------------------ */
+// type = interrupt device type, unit = # of device (when more than one),
+// status = where interrupt handler puts device's status register.
+int waitDevice(int type, int unit, int *status)
+{
+    if (DEBUG2 && debugflag2)
+        USLOSS_Console("waitDevice(): called\n");
+
+	int dev = type;
+	int msg_ptr;
+	int msg_rtn = 0;
+	
+	if ((dev == USLOSS_CLOCK_DEV) && (unit == 0))
+		msg_rtn = MboxReceive(IOmailboxes[CLOCKBOX], &msg_ptr, sizeof(int));
+	else if ((dev == USLOSS_TERM_DEV) && (unit == 0))
+		msg_rtn = MboxReceive(IOmailboxes[TERMBOX], &msg_ptr, sizeof(int));
+	else if ((dev == USLOSS_TERM_DEV) && (unit == 1))
+		msg_rtn = MboxReceive(IOmailboxes[TERMBOX+1], &msg_ptr, sizeof(int));
+	else if ((dev == USLOSS_TERM_DEV) && (unit == 2))
+		msg_rtn = MboxReceive(IOmailboxes[TERMBOX+2], &msg_ptr, sizeof(int));
+	else if ((dev == USLOSS_TERM_DEV) && (unit == 3))
+		msg_rtn = MboxReceive(IOmailboxes[TERMBOX+3], &msg_ptr, sizeof(int));
+	else if ((dev == USLOSS_TERM_DEV) && (unit == 0))
+		msg_rtn = MboxReceive(IOmailboxes[DISKBOX], &msg_ptr, sizeof(int));
+	else if ((dev == USLOSS_TERM_DEV) && (unit == 1))
+		msg_rtn = MboxReceive(IOmailboxes[DISKBOX+1], &msg_ptr, sizeof(int));
+	else
+	{
+		USLOSS_Console("waitDevice(): Error device %d, unit %d\n", dev, unit);
+		USLOSS_Halt(1);
+	}
+
+	status = &msg_ptr;
+
+	if (msg_rtn == -3)
+		return -1;
+	else
+		return 0;
+}
+
+
 
 void checkForKernelMode(char * name) 
 {
@@ -759,57 +807,6 @@ void enqueue(queue *q, void *p)
     }
     q->size++;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
