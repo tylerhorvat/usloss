@@ -51,5 +51,5 @@ clean:
 
 phase2.o:	message.h
 
-submit: $(CSRCS) $(HDRS) Makefile
-	tar cvzf phase2.tgz $(CSRCS) $(HDRS) Makefile
+submit: $(CSRCS) $(HDRS) handler.c Makefile
+	tar cvzf phase2.tgz $(CSRCS) $(HDRS) handler.c Makefile
