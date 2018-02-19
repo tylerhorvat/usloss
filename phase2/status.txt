@@ -10,7 +10,7 @@ test08 Pass x
 test09 Pass x
 test10 Pass x
 test11 Pass x
-test12 conditional message error      
+test12 Pass x     
 test13 Pass x
 test14 Pass x    
 test15 Pass x
@@ -18,7 +18,7 @@ test16 Pass x
 test17 Pass x
 test18 Pass x
 test19 Pass x
-test20 conditional message error 
+test20 Pass x 
 test21 Pass x
 test22 Pass x
 test23 Pass x
@@ -26,7 +26,7 @@ test24 Pass x
 test25 Pass x
 test26 Pass x
 test27 Pass x
-test28 conditional message     
+test28 Pass x     
 test29 Pass x
 test30 Pass x
 test31 Pass x
@@ -38,8 +38,8 @@ test36 syscall error. should not see message.
 test37 syscall should not see message
 test38 syscall 
 test39 Pass x
-test40 FAILED has active children
-test41 conditional message error 
-test42 conditional message error
-test43 conditional message error 
+test40 FAILED passing message to slot that is too small
+test41 Pass x 
+test42 Pass x
+test43 Pass x 
 test44 Pass x
