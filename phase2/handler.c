@@ -12,9 +12,9 @@ extern int debugflag2;
 extern void disableInterrupts(void);
 extern void enableInterrupts(void);
 extern void requireKernelMode(char *);
-
-int IOmailboxes[7]; // mboxIDs for the IO devices
-int IOblocked = 0; // number of processes blocked on IO mailboxes
+extern void (*systemCallVec[MAXSYSCALLS])(USLOSS_Sysargs *args);
+extern int IOmailboxes[7]; // mboxIDs for the IO devices
+//extern int IOblocked = 0; // number of processes blocked on IO mailboxes
 
 int clockInterruptCount = 0;
 
@@ -49,6 +49,9 @@ void clockHandler2(int dev, void *arg)
 	
 	dev_rtn = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
 
+    if (DEBUG2 && debugflag2)
+        USLOSS_Console("clockHandler2(): dev %d, unit %d, status %d, dev_rtn %d\n", dev, unit, status, dev_rtn);	
+	
 	if(dev == USLOSS_CLOCK_DEV)
 	{
 		if(dev_rtn == USLOSS_DEV_OK) 
@@ -61,21 +64,22 @@ void clockHandler2(int dev, void *arg)
 				timeSlice(); 
 			
 				msg_rtn = MboxCondSend(IOmailboxes[CLOCKBOX], &status, sizeof(int));
+				
+				if (DEBUG2 && debugflag2)
+					USLOSS_Console("clockHandler2(): msg_rtn %d\n", msg_rtn);
 			}
 		}
 		else
 		{
-			USLOSS_Console("diskHandler(): device input error %d\n", dev);
+			USLOSS_Console("clockHandler2(): device input error %d\n", dev);
 			USLOSS_Halt(1);
 		}
 	}
 	else
 	{
-		USLOSS_Console("clockHandler(): device type error %d\n", dev_rtn);
+		USLOSS_Console("clockHandler2(): device type error %d\n", dev_rtn);
 		USLOSS_Halt(1);
 	}
-	if (DEBUG2 && debugflag2)
-        USLOSS_Console("clockHandler(): msg_rtn %d\n", msg_rtn);
 	
 } /* clockHandler2 */
 
@@ -101,7 +105,7 @@ void diskHandler(int dev, void *arg)
 	int dev_rtn;
 	int msg_rtn;
 
-	dev_rtn = USLOSS_DeviceInput(dev, unit, &status);
+	dev_rtn = USLOSS_DeviceInput(USLOSS_DISK_DEV, unit, &status);
 
     if (DEBUG2 && debugflag2)
         USLOSS_Console("diskHandler(): dev %d, unit %d, status %d, dev_rtn %d\n", dev, unit, status, dev_rtn);
@@ -111,13 +115,9 @@ void diskHandler(int dev, void *arg)
 		if(dev_rtn == USLOSS_DEV_OK) 
 		{
 			if(unit == 0)
-			{
 				msg_rtn = MboxCondSend(IOmailboxes[DISKBOX], &status, sizeof(int));
-			}
-			else if(unit == 1) 
-			{
+			else if(unit == 1)
 				msg_rtn = MboxCondSend(IOmailboxes[DISKBOX+1], &status, sizeof(int));
-			}
 			else
 			{
 				USLOSS_Console("diskHandler(): device unit number error %d\n", unit);
@@ -160,32 +160,23 @@ void termHandler(int dev, void *arg)
 	int dev_rtn;
 	int msg_rtn;
 	
-	dev_rtn = USLOSS_DeviceInput(dev, unit, &status);
+	dev_rtn = USLOSS_DeviceInput(USLOSS_TERM_DEV, unit, &status);
 
     if (DEBUG2 && debugflag2)
         USLOSS_Console("termHandler(): dev %d, unit %d, status %d, dev_rtn %d\n", dev, unit, status, dev_rtn);
 
-	
 	if(dev == USLOSS_TERM_DEV)
 	{
 		if(dev_rtn == USLOSS_DEV_OK) 
 		{
 			if(unit == 0)
-			{
 				msg_rtn = MboxCondSend(IOmailboxes[TERMBOX], &status, sizeof(int));
-			}
 			else if(unit == 1) 
-			{
-				msg_rtn = MboxCondSend(IOmailboxes[TERMBOX+1], &status, sizeof(int));				
-			}
-			else if(unit == 2) 
-			{
+				msg_rtn = MboxCondSend(IOmailboxes[TERMBOX+1], &status, sizeof(int));
+			else if(unit == 2)
 				msg_rtn = MboxCondSend(IOmailboxes[TERMBOX+2], &status, sizeof(int));
-			}
 			else if(unit == 3) 
-			{
 				msg_rtn = MboxCondSend(IOmailboxes[TERMBOX+3], &status, sizeof(int));
-			}
 			else
 			{
 				USLOSS_Console("termHandler(): device unit number error %d\n", unit);
@@ -211,9 +202,8 @@ void termHandler(int dev, void *arg)
 
 /* ------------------------------------------------------------------------
    Name - syscallHandler
-   Purpose - Call the dispatcher if the currently executing process has 
-			 exceeded its time slice; otherwise return.
-   Parameters - none
+   Purpose - 
+   Parameters - int dev, void *arg
    Returns - nothing
    Side Effects - none
    ----------------------------------------------------------------------- */
@@ -222,13 +212,15 @@ void syscallHandler(int dev, void *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("syscallHandler(): called\n");
 
-	int unit = (long int) arg;
-
+	USLOSS_Sysargs args;
+	
     if (DEBUG2 && debugflag2)
-        USLOSS_Console("syscallHandler(): dev %d, unit %d\n", dev, unit);
+        USLOSS_Console("syscallHandler(): dev %d, unit %d\n", dev, index);
 
 	if(dev == USLOSS_SYSCALL_INT)
 	{
+		if (args.number == 0)
+			nullsys(struct USLOSS_Sysargs *args);
 	}
 	else
 	{
