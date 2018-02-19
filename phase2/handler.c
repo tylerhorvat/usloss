@@ -212,15 +212,15 @@ void syscallHandler(int dev, void *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("syscallHandler(): called\n");
 
-	USLOSS_Sysargs args;
+//	USLOSS_Sysargs args;
 	
     if (DEBUG2 && debugflag2)
         USLOSS_Console("syscallHandler(): dev %d, unit %d\n", dev, index);
 
 	if(dev == USLOSS_SYSCALL_INT)
 	{
-		if (args.number == 0)
-			nullsys(struct USLOSS_Sysargs *args);
+//		if (args.number == 0)
+//			nullsys(struct USLOSS_Sysargs *args);
 	}
 	else
 	{
