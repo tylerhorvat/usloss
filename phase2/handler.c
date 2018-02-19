@@ -9,21 +9,29 @@ extern int debugflag2;
 #define DISKBOX 1
 #define TERMBOX 3
 
-extern void disableInterrupts(void);
-extern void enableInterrupts(void);
-extern void requireKernelMode(char *);
-extern void (*systemCallVec[MAXSYSCALLS])(USLOSS_Sysargs *args);
+//extern void disableInterrupts(void);
+//extern void enableInterrupts(void);
+//extern void requireKernelMode(char *);
+//extern void (*systemCallVec[MAXSYSCALLS])(USLOSS_Sysargs *args);
 extern int IOmailboxes[7]; // mboxIDs for the IO devices
 //extern int IOblocked = 0; // number of processes blocked on IO mailboxes
 
 int clockInterruptCount = 0;
+int Sysargs_number = 0;
 
 
-/* an error method to handle invalid syscalls */
+/* ------------------------------------------------------------------------
+   Name - nullsys
+   Purpose - Handles invalid syscalls
+   Parameters - USLOSS_Sysargs *args
+   Returns - nothing
+   Side Effects - none
+   ----------------------------------------------------------------------- */
 void nullsys(USLOSS_Sysargs *args)
 {
-    USLOSS_Console("nullsys(): Invalid syscall. Halting...\n");
+    USLOSS_Console("nullsys(): Invalid syscall %d. Halting...\n", Sysargs_number);
     USLOSS_Halt(1);
+		
 } /* nullsys */
 
 
@@ -35,7 +43,7 @@ void nullsys(USLOSS_Sysargs *args)
 			 interrupt.
    Parameters - int dev, void *arg (Ignore arg; it is not used by the clock)
    Returns - nothing
-   Side Effects - Calls dispatcher() if necessary
+   Side Effects - none
    ----------------------------------------------------------------------- */
 void clockHandler2(int dev, void *arg)
 {
@@ -89,8 +97,8 @@ void clockHandler2(int dev, void *arg)
    Purpose - 1) Check that device is disk
 			 2) Check that unit number is in the correct range
 			 3)	Read disk status register using USLOSS_Device_Input
-			 4) Conditionally send status to the appropriate i/o mailbox 
-			 5) Conditional send so disk is never blocked on the mailbox
+			 4) Conditionally send status to the appropriate i/o mailbox
+			    Conditional send so disk is never blocked on the mailbox
    Parameters - int dev, void *arg
    Returns - nothing
    Side Effects - none
@@ -144,8 +152,8 @@ void diskHandler(int dev, void *arg)
    Purpose - 1) Check that device is terminal
 			 2) Check that unit number is in the correct range
 			 3)	Read terminal status register using USLOSS_Device_Input
-			 4) Conditionally send status to the appropriate i/o mailbox 
-			 5) Conditional send so disk is never blocked on the mailbox
+			 4) Conditionally send status to the appropriate i/o mailbox
+			    Conditional send so disk is never blocked on the mailbox
    Parameters - int dev, void *arg
    Returns - nothing
    Side Effects - none
@@ -202,7 +210,7 @@ void termHandler(int dev, void *arg)
 
 /* ------------------------------------------------------------------------
    Name - syscallHandler
-   Purpose - 
+   Purpose - Handles system calls.  Invoked by USLOSS_Syscall((void *)&args);
    Parameters - int dev, void *arg
    Returns - nothing
    Side Effects - none
@@ -212,15 +220,21 @@ void syscallHandler(int dev, void *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("syscallHandler(): called\n");
 
-//	USLOSS_Sysargs args;
-	
+	USLOSS_Sysargs *Sysargs_ptr = (USLOSS_Sysargs *) arg;
+	Sysargs_number = Sysargs_ptr->number;
+
     if (DEBUG2 && debugflag2)
-        USLOSS_Console("syscallHandler(): dev %d, unit %d\n", dev, index);
+        USLOSS_Console("syscallHandler(): dev %d, number %d\n", dev, Sysargs_number);
 
 	if(dev == USLOSS_SYSCALL_INT)
 	{
-//		if (args.number == 0)
-//			nullsys(struct USLOSS_Sysargs *args);
+		if ((Sysargs_number < 0) || (Sysargs_number >= 50))
+		{
+			USLOSS_Console("syscallHandler(): sys number %d is wrong.  Halting...\n", Sysargs_number);
+			USLOSS_Halt(1);
+		}	
+		else
+			nullsys((void *)&arg); // 
 	}
 	else
 	{
@@ -228,25 +242,5 @@ void syscallHandler(int dev, void *arg)
 		USLOSS_Halt(1);
 	}
 
-
-/*
-	int index;
-
-	USLOSS_Sysargs *saptr = (USLOSS_Sysargs *) arg;
-
-	int oldPSR = USLOSS_PsrGet();
-	
-	index = saptr->number;
-	
-	if(syscalls_vec[index] == NULL)
-		fprintf(stderr, "Underconstruction until a later phase!");
-	else 
-	{
-		USLOSS_PsrSet(oldPSR | USLOSS_PSR_CURRENT_INT);
-		(syscalls_vec[index])(saptr); //this is supposed to work because of vector according to mike
-		USLOSS_PsrSet(oldPSR);
-
-	}
-*/
-
 } /* syscallHandler */
+
