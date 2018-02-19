@@ -47,6 +47,9 @@ int numBoxes, numSlots;
 
 int nextMboxID = 0, nextSlotID = 0, nextProc = 0;
 
+int IOmailboxes[7]; // mboxIDs for the IO devices
+int IOblocked; // number of processes blocked on IO mailboxes
+
 // system call vector
 void (*systemCallVec[MAXSYSCALLS])(USLOSS_Sysargs *args);
 
@@ -187,7 +190,7 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
     if (mbox_id < 0 || mbox_id >= MAXMBOX)
     {
         if (DEBUG2 && debugflag2)
-            USLOSS_Console("MboxCondSend(): called with invalid mbox_id: 5d, returning -1\n", mbox_id);
+            USLOSS_Console("MboxCondSend(): called with invalid mbox_id: %d, returning -1\n", mbox_id);
         enableInterrupts();
         return -1;
     }
@@ -199,7 +202,7 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
     if (box->status == INACTIVE || msg_size < 0 || msg_size > box->slotSize)
     {
         if (DEBUG2 && debugflag2)
-            USLOSS_Console("MboxCondSend(): called with an invalid argument, returning -1\n", mbox_id);
+            USLOSS_Console("MboxCondSend(): called with an invalid argument %d, returning -1\n", mbox_id);
         enableInterrupts();
         return -1;
     }
@@ -317,7 +320,6 @@ void clearSlot(int i)
     MailSlotTable[i].slotId = -1;
     numSlots--;
 }
-
 
 
 /* ------------------------------------------------------------------------
@@ -651,15 +653,40 @@ int check_io(void)
 {
     if (DEBUG2 && debugflag2)
         USLOSS_Console("check_io(): called\n");
+
+	mailbox *clockbox = &MailBoxTable[IOmailboxes[CLOCKBOX]];
+	mailbox *termbox = &MailBoxTable[IOmailboxes[TERMBOX]];
+	mailbox *term1box = &MailBoxTable[IOmailboxes[TERMBOX+1]];
+	mailbox *term2box = &MailBoxTable[IOmailboxes[TERMBOX+2]];
+	mailbox *term3box = &MailBoxTable[IOmailboxes[TERMBOX+3]];
+	mailbox *diskbox = &MailBoxTable[IOmailboxes[DISKBOX]];
+	mailbox *disk1box = &MailBoxTable[IOmailboxes[DISKBOX+1]];
 		
-    return 0;
+	if ((clockbox->blockedProcSend.size > 0) || (clockbox->blockedProcRec.size > 0))
+		return 1;
+	if ((termbox->blockedProcSend.size > 0) || (termbox->blockedProcRec.size > 0))
+		return 1;
+	if ((term1box->blockedProcSend.size > 0) || (term1box->blockedProcRec.size > 0))
+		return 1;
+	if ((term2box->blockedProcSend.size > 0) || (term2box->blockedProcRec.size > 0))
+		return 1;
+	if ((term3box->blockedProcSend.size > 0) || (term3box->blockedProcRec.size > 0))
+		return 1;	
+	if ((diskbox->blockedProcSend.size > 0) || (diskbox->blockedProcRec.size > 0))
+		return 1;	
+	if ((disk1box->blockedProcSend.size > 0) || (disk1box->blockedProcRec.size > 0))
+		return 1;	
+	
+	return 0;
+
 } /* check_io */
 
 /* ------------------------------------------------------------------------
    Name - waitDevice
    Purpose - 1) Provides results of i/o operations
              2) Use MboxReceive on the appropriate mailbox
-   Returns - 
+   Returns - (-1): the process was zap'd while waiting
+			  (0): otherwise 
    Side Effects - none.
    ------------------------------------------------------------------------ */
 // type = interrupt device type, unit = # of device (when more than one),
@@ -671,7 +698,7 @@ int waitDevice(int type, int unit, int *status)
 
 	int dev = type;
 	int msg_ptr;
-	int msg_rtn = 0;
+	int msg_rtn = -2;
 	
 	if ((dev == USLOSS_CLOCK_DEV) && (unit == 0))
 		msg_rtn = MboxReceive(IOmailboxes[CLOCKBOX], &msg_ptr, sizeof(int));
@@ -683,9 +710,9 @@ int waitDevice(int type, int unit, int *status)
 		msg_rtn = MboxReceive(IOmailboxes[TERMBOX+2], &msg_ptr, sizeof(int));
 	else if ((dev == USLOSS_TERM_DEV) && (unit == 3))
 		msg_rtn = MboxReceive(IOmailboxes[TERMBOX+3], &msg_ptr, sizeof(int));
-	else if ((dev == USLOSS_TERM_DEV) && (unit == 0))
+	else if ((dev == USLOSS_DISK_DEV) && (unit == 0))
 		msg_rtn = MboxReceive(IOmailboxes[DISKBOX], &msg_ptr, sizeof(int));
-	else if ((dev == USLOSS_TERM_DEV) && (unit == 1))
+	else if ((dev == USLOSS_DISK_DEV) && (unit == 1))
 		msg_rtn = MboxReceive(IOmailboxes[DISKBOX+1], &msg_ptr, sizeof(int));
 	else
 	{
@@ -693,14 +720,23 @@ int waitDevice(int type, int unit, int *status)
 		USLOSS_Halt(1);
 	}
 
-	status = &msg_ptr;
+	*status = msg_ptr;
+	
+    if (DEBUG2 && debugflag2)
+        USLOSS_Console("waitDevice(): dev %d, unit %d, msg_ptr %d, status %d\n", dev, unit, msg_ptr, status);
+
+    while (1) 
+    {
+        if (msg_rtn >= 0)
+			break;
+        USLOSS_WaitInt();
+    }
 
 	if (msg_rtn == -3)
 		return -1;
 	else
 		return 0;
 }
-
 
 
 void checkForKernelMode(char * name) 
