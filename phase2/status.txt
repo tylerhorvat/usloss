@@ -11,8 +11,8 @@ test09 Pass x
 test10 Pass x
 test11 Pass x
 test12 conditional message error      
-test13 check deadlock 
-test14 check deadlock    
+test13 Pass x
+test14 Pass x    
 test15 Pass x
 test16 Pass x
 test17 Pass x
@@ -30,7 +30,7 @@ test28 conditional message
 test29 Pass x
 test30 Pass x
 test31 Pass x
-test32 check deadlock
+test32 Pass x 
 test33 Pass x
 test34 Pass x
 test35 Pass x
