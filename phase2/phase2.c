@@ -466,6 +466,14 @@ int createSlot(void *msg_ptr, int msg_size)
 
 int sentProc(mboxProcPtr proc, void *msgPtr, int msgSize)
 {
+    if (proc == NULL || proc->msgPtr == NULL || proc->msgSize < msgSize)
+    {
+        if (DEBUG2 && debugflag2)
+            USLOSS_Console("sentProc(): invalid args, returning -1\n");
+        proc->msgSize = -1;
+        return -1;
+    }
+	
     // copy the message
     memcpy(proc->msgPtr, msgPtr, msgSize);
     proc->msgSize = msgSize;
