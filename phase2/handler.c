@@ -3,18 +3,11 @@
 #include <phase2.h>
 #include <usloss.h>
 #include "message.h"
+#include <usyscall.h>
+
 
 extern int debugflag2;
-#define CLOCKBOX 0
-#define DISKBOX 1
-#define TERMBOX 3
-
-//extern void disableInterrupts(void);
-//extern void enableInterrupts(void);
-//extern void requireKernelMode(char *);
-//extern void (*systemCallVec[MAXSYSCALLS])(USLOSS_Sysargs *args);
 extern int IOmailboxes[7]; // mboxIDs for the IO devices
-//extern int IOblocked = 0; // number of processes blocked on IO mailboxes
 
 int clockInterruptCount = 0;
 int Sysargs_number = 0;
@@ -25,7 +18,7 @@ int Sysargs_number = 0;
    Purpose - Handles invalid syscalls
    Parameters - USLOSS_Sysargs *args
    Returns - nothing
-   Side Effects - none
+   Side Effects - Halts
    ----------------------------------------------------------------------- */
 void nullsys(USLOSS_Sysargs *args)
 {
@@ -43,7 +36,7 @@ void nullsys(USLOSS_Sysargs *args)
 			 interrupt.
    Parameters - int dev, void *arg (Ignore arg; it is not used by the clock)
    Returns - nothing
-   Side Effects - none
+   Side Effects - Halts on errors
    ----------------------------------------------------------------------- */
 void clockHandler2(int dev, void *arg)
 {
@@ -60,6 +53,7 @@ void clockHandler2(int dev, void *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("clockHandler2(): dev %d, unit %d, status %d, dev_rtn %d\n", dev, unit, status, dev_rtn);	
 	
+	// Call timeSlice and send conditional message to Clock, if no device errors
 	if(dev == USLOSS_CLOCK_DEV)
 	{
 		if(dev_rtn == USLOSS_DEV_OK) 
@@ -101,7 +95,7 @@ void clockHandler2(int dev, void *arg)
 			    Conditional send so disk is never blocked on the mailbox
    Parameters - int dev, void *arg
    Returns - nothing
-   Side Effects - none
+   Side Effects - Halts on errors
    ----------------------------------------------------------------------- */
 void diskHandler(int dev, void *arg)
 {
@@ -118,6 +112,7 @@ void diskHandler(int dev, void *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("diskHandler(): dev %d, unit %d, status %d, dev_rtn %d\n", dev, unit, status, dev_rtn);
 
+	// Send conditional status message to Disks, if no device or argument errors
 	if(dev == USLOSS_DISK_DEV)
 	{
 		if(dev_rtn == USLOSS_DEV_OK) 
@@ -156,7 +151,7 @@ void diskHandler(int dev, void *arg)
 			    Conditional send so disk is never blocked on the mailbox
    Parameters - int dev, void *arg
    Returns - nothing
-   Side Effects - none
+   Side Effects - Halts on errors
    ----------------------------------------------------------------------- */
 void termHandler(int dev, void *arg)
 {
@@ -173,6 +168,7 @@ void termHandler(int dev, void *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("termHandler(): dev %d, unit %d, status %d, dev_rtn %d\n", dev, unit, status, dev_rtn);
 
+	// Send conditional status message to Terminals, if no device or argument errors 
 	if(dev == USLOSS_TERM_DEV)
 	{
 		if(dev_rtn == USLOSS_DEV_OK) 
@@ -213,7 +209,7 @@ void termHandler(int dev, void *arg)
    Purpose - Handles system calls.  Invoked by USLOSS_Syscall((void *)&args);
    Parameters - int dev, void *arg
    Returns - nothing
-   Side Effects - none
+   Side Effects - Halts on errors
    ----------------------------------------------------------------------- */
 void syscallHandler(int dev, void *arg)
 {
@@ -226,6 +222,7 @@ void syscallHandler(int dev, void *arg)
     if (DEBUG2 && debugflag2)
         USLOSS_Console("syscallHandler(): dev %d, number %d\n", dev, Sysargs_number);
 
+	// Call nullsys to halt, if no device or argument errors 
 	if(dev == USLOSS_SYSCALL_INT)
 	{
 		if ((Sysargs_number < 0) || (Sysargs_number >= 50))
@@ -234,7 +231,7 @@ void syscallHandler(int dev, void *arg)
 			USLOSS_Halt(1);
 		}	
 		else
-			nullsys((void *)&arg); // 
+			nullsys((void *)&arg);  
 	}
 	else
 	{

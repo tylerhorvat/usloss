@@ -5,7 +5,7 @@ ASSIGNMENT = 452phase2
 CC = gcc
 AR = ar
 
-COBJS = phase2.o
+COBJS = phase2.o handler.o
 CSRCS = ${COBJS:.o=.c}
 
 PHASE1LIB = patrickphase1
@@ -47,9 +47,12 @@ $(TESTS):       $(TARGET) p1.o
 
 clean:
 	rm -f $(COBJS) $(TARGET) core term*.out test*.o test*.txt test*.dif $(TESTS) \
-		p1.o term*in
+		p1.o
 
 phase2.o:	message.h
 
-submit: $(CSRCS) $(HDRS) handler.c Makefile
-	tar cvzf phase2.tgz $(CSRCS) $(HDRS) handler.c Makefile
+handler.o:	message.h
+
+submit: $(CSRCS) $(HDRS) Makefile 
+	tar cvzf phase2.tgz $(CSRCS) $(HDRS) Makefile 
+
