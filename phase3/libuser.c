@@ -20,6 +20,7 @@
     }  \
 }
 
+
 /*
  *  Routine:  Spawn
  *
@@ -33,6 +34,15 @@
  *                int  *pid     -- pointer to output value
  *                (output value: process id of the forked process)
  *
+ *  Input:        arg1: address of the function to spawn.
+ *                arg2: parameter passed to spawned function.
+ *                arg3: stack size (in bytes).
+ *                arg4: priority.
+ *                arg5: character string containing process’s name.
+ *
+ *  Output:       arg1: the PID of the newly created process; -1 if a process could not be created.
+ *                arg4: -1 if illegal values are given as input; 0 otherwise.
+ *
  *  Return Value: 0 means success, -1 means error occurs
  *
  */
@@ -42,6 +52,7 @@ int Spawn(char *name, int (*func)(char *), char *arg, int stack_size,
     USLOSS_Sysargs sysArg;
     
     CHECKMODE;
+	
     sysArg.number = SYS_SPAWN;
     sysArg.arg1 = (void *) func;
     sysArg.arg2 = arg;
@@ -66,6 +77,9 @@ int Spawn(char *name, int (*func)(char *), char *arg, int stack_size,
  *                int *status -- pointer to output value 2
  *                (output value 2: status of the completing child)
  *
+ *  Output:       arg1: process id of the terminating child.
+ *                arg2: the termination code of the child.
+ * 
  *  Return Value: 0 means success, -1 means error occurs
  *
  */
@@ -74,6 +88,7 @@ int Wait(int *pid, int *status)
     USLOSS_Sysargs sysArg;
     
     CHECKMODE;
+	
     sysArg.number = SYS_WAIT;
 
     USLOSS_Syscall(&sysArg);
@@ -93,12 +108,21 @@ int Wait(int *pid, int *status)
  *
  *  Arguments:   int status -- the commpletion status of the process
  *
- *  Return Value: 0 means success, -1 means error occurs
+ *  Input:        arg1: termination code for the process.
  *
  */
 void Terminate(int status)
 {
+    USLOSS_Sysargs sysArg;
     
+    CHECKMODE;
+	
+    sysArg.number = SYS_TERMINATE;
+
+    USLOSS_Syscall(&sysArg);
+
+    *status = (int) sysArg.arg1;
+        
 } /* end of Terminate */
 
 
@@ -109,11 +133,27 @@ void Terminate(int status)
  *
  *  Arguments:
  *
+ *  Input:        arg1: initial semaphore value.
+ *
+ *  Output:       arg1: semaphore handle to be used in subsequent semaphore system calls.
+ *                arg4: -1 if initial value is negative or no semaphores are available; 0 otherwise.
+ *
  */
 int SemCreate(int value, int *semaphore)
 {
-    int something = 0;
-    return something;
+    USLOSS_Sysargs sysArg;
+    
+    CHECKMODE;
+	
+    sysArg.number = SYS_SEMCREATE;
+    sysArg.arg1 = (void *) value;
+
+    USLOSS_Syscall(&sysArg);
+
+	*semaphore = (int) sysArg.arg1;
+	
+    return (int) sysArg.arg4;   
+
 } /* end of SemCreate */
 
 
@@ -124,11 +164,24 @@ int SemCreate(int value, int *semaphore)
  *
  *  Arguments:
  *
+ *  Input:        arg1: semaphore handle.
+ *
+ *  Output:       arg4: -1 if semaphore handle is invalid, 0 otherwise.
+ *
  */
 int SemP(int semaphore)
 {
-    int something = 0;
-    return something;
+    USLOSS_Sysargs sysArg;
+    
+    CHECKMODE;
+	
+    sysArg.number = SYS_SEMP;
+    sysArg.arg1 = (void *) semaphore;	
+
+    USLOSS_Syscall(&sysArg);
+	
+    return (int) sysArg.arg4;
+
 } /* end of SemP */
 
 
@@ -139,65 +192,128 @@ int SemP(int semaphore)
  *
  *  Arguments:
  *
+ *  Input:        arg1: semaphore handle.
+ *
+ *  Output:       arg4: -1 if semaphore handle is invalid, 0 otherwise.
+ *
  */
 int SemV(int semaphore)
 {
-    int something = 0;
-    return something;
+    USLOSS_Sysargs sysArg;
+    
+    CHECKMODE;
+	
+    sysArg.number = SYS_SEMV;
+    sysArg.arg1 = (void *) semaphore;
+	
+    USLOSS_Syscall(&sysArg);
+
+    return (int) sysArg.arg4;
+
 } /* end of SemV */
 
 
 /*
  *  Routine:  SemFree
  *
- *  Description: Free a semaphore.
+ *  Description:  Free a semaphore.
  *
  *  Arguments:
+ *
+ *  Input:        arg1: semaphore handle.
+ *
+ *  Output:       arg4: -1 if semaphore handle is invalid, 1 if there 
+ *                were processes blocked on the semaphore, 0 otherwise.
  *
  */
 int SemFree(int semaphore)
 {
-    int something = 0;
-    return something;
+    USLOSS_Sysargs sysArg;
+    
+    CHECKMODE;
+	
+    sysArg.number = SYS_SEMFREE;
+
+    sysArg.arg1 = (void *) semaphore;
+
+    USLOSS_Syscall(&sysArg);
+	
+    return (int) sysArg.arg4;
+
 } /* end of SemFree */
 
 
 /*
  *  Routine:  GetTimeofDay
  *
- *  Description: This is the call entry point for getting the time of day.
+ *  Description:  This is the call entry point for getting the time of day.
  *
  *  Arguments:
+ *
+ *  Output:       arg1: the time of day.
  *
  */
 void GetTimeofDay(int *tod)                           
 {
+    USLOSS_Sysargs sysArg;
+    
+    CHECKMODE;
+
+    sysArg.number = SYS_GETTIMEOFDAY;
+
+    USLOSS_Syscall(&sysArg);
+
+    *tod = (int) sysArg.arg1;
+
 } /* end of GetTimeofDay */
 
 
 /*
  *  Routine:  CPUTime
  *
- *  Description: This is the call entry point for the process' CPU time.
+ *  Description:  This is the call entry point for the process' CPU time.
  *
  *  Arguments:
+ *
+ *  Output:       arg1: the CPU time used by the currently running process.
  *
  */
 void CPUTime(int *cpu)                           
 {
+    USLOSS_Sysargs sysArg;
+    
+    CHECKMODE;
+    sysArg.number = SYS_CPUTIME;
+
+    USLOSS_Syscall(&sysArg);
+
+    *cpu = (int) sysArg.arg1;
+
 } /* end of CPUTime */
 
 
 /*
  *  Routine:  GetPID
  *
- *  Description: This is the call entry point for the process' PID.
+ *  Description:  This is the call entry point for the process' PID.
  *
  *  Arguments:
+ *
+ *  Output:       arg1: the process ID.
  *
  */
 void GetPID(int *pid)                           
 {
+    USLOSS_Sysargs sysArg;
+    
+    CHECKMODE;
+	
+    sysArg.number = SYS_GETPID;
+
+    USLOSS_Syscall(&sysArg);
+
+    *pid = (int) sysArg.arg1;
+	
 } /* end of GetPID */
 
 /* end libuser.c */
