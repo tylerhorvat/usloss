@@ -13,9 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-//#include "message.h"
-#include "handler.c"
+#include <message.h>
 
 /* ------------------------- Prototypes ----------------------------------- */
 int start1 (char *);
@@ -30,9 +28,11 @@ void clearBox(int);
 void clearSlot(int);
 int createSlot(void *, int);
 int sentProc(mboxProcPtr, void *, int);
+
+                       
 /* -------------------------- Globals ------------------------------------- */
 
-int debugflag2 = 1;
+int debugflag2 = 0;
 
 // the mail boxes 
 mailbox MailBoxTable[MAXMBOX];

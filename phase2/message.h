@@ -7,6 +7,11 @@ typedef struct mailSlot   mailSlot;
 typedef struct mboxProc   mboxProc;
 typedef struct mboxProc  *mboxProcPtr;
 typedef struct queue queue;
+void clockHandler2(int, void *);
+void nullsys(USLOSS_Sysargs *);
+void diskHandler(int, void *);
+void termHandler(int, void *);
+void syscallHandler(int, void *);
 
 struct queue {
     void      *head;
@@ -58,6 +63,11 @@ struct mboxProc {
 
 #define SLOTQUEUE 0
 #define PROCQUEUE 1
+
+//defines for message boxes 
+#define CLOCKBOX 0
+#define DISKBOX 1
+#define TERMBOX 3
 
 
 struct psrBits {
