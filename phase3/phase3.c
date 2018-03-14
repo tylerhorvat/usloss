@@ -46,9 +46,6 @@ int debug3 = 0;
 semaphore SemTable[MAXSEMS];
 int numSems;
 procStruct3 ProcTable3[MAXPROC];
-=======
->>>>>>> 50942a29287469c03f117240d6caa9c8add60054
-
 
 int start2(char *arg)
 {
