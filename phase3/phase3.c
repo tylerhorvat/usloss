@@ -3,6 +3,7 @@
 #include <phase1.h>
 #include <phase2.h>
 #include <phase3.h>
+<<<<<<< HEAD
 #include <sems.h>
 #include <string.h>
 
@@ -45,26 +46,29 @@ int debug3 = 0;
 semaphore SemTable[MAXSEMS];
 int numSems;
 procStruct3 ProcTable3[MAXPROC];
+=======
+>>>>>>> 50942a29287469c03f117240d6caa9c8add60054
 
-int
-start2(char *arg)
+
+int start2(char *arg)
 {
     int pid;
     int status;
-    /*
-     * Check kernel mode here.
-     */
-  checkForKernelMode("start2");
+
+	// Check kernel mode here.
+    checkForKernelMode("start2");
 
     /*
      * Data structure initialization as needed...
      */
+
 
   int i;
   for(i = 0; i < USLOSS_MAX_SYSCALLS; i++)
   {
     systemCallVec[i] = nullsys3;
   }
+
   systemCallVec[SYS_SPAWN] = spawn;
   systemCallVec[SYS_WAIT] = wait;
   systemCallVec[SYS_TERMINATE] = wait;
@@ -93,6 +97,7 @@ start2(char *arg)
   }
 
   numSems = 0;
+	
     /*
      * Create first user-level process and wait for it to finish.
      * These are lower-case because they are not system calls;
@@ -144,6 +149,7 @@ start2(char *arg)
 
 } /* start2 */
 
+<<<<<<< HEAD
 /*initialize proc struct*/
 void initProc(int pid) 
 {
@@ -805,4 +811,3 @@ void nullsys3(USLOSS_Sysargs *args)
   terminateReal(1);
 }
 /* end nullsys3 */
-
