@@ -3,7 +3,6 @@
 #include <phase1.h>
 #include <phase2.h>
 #include <phase3.h>
-<<<<<<< HEAD
 #include <sems.h>
 #include <string.h>
 
@@ -47,25 +46,25 @@ semaphore SemTable[MAXSEMS];
 int numSems;
 procStruct3 ProcTable3[MAXPROC];
 
-int start2(char *arg)
+int
+start2(char *arg)
 {
     int pid;
     int status;
-
-	// Check kernel mode here.
-    checkForKernelMode("start2");
+    /*
+     * Check kernel mode here.
+     */
+  checkForKernelMode("start2");
 
     /*
      * Data structure initialization as needed...
      */
-
 
   int i;
   for(i = 0; i < USLOSS_MAX_SYSCALLS; i++)
   {
     systemCallVec[i] = nullsys3;
   }
-
   systemCallVec[SYS_SPAWN] = spawn;
   systemCallVec[SYS_WAIT] = wait;
   systemCallVec[SYS_TERMINATE] = wait;
@@ -94,7 +93,6 @@ int start2(char *arg)
   }
 
   numSems = 0;
-	
     /*
      * Create first user-level process and wait for it to finish.
      * These are lower-case because they are not system calls;
@@ -146,7 +144,6 @@ int start2(char *arg)
 
 } /* start2 */
 
-<<<<<<< HEAD
 /*initialize proc struct*/
 void initProc(int pid) 
 {
@@ -431,7 +428,7 @@ int spawnLaunch(char *startArg)
     USLOSS_Console("spawnLaunch(): terminating process %d with status %d\n", proc->pid, status);
   }
 
-  Terminate(status);
+  //Terminate(status);
  
   return 0;
 }
@@ -808,3 +805,11 @@ void nullsys3(USLOSS_Sysargs *args)
   terminateReal(1);
 }
 /* end nullsys3 */
+
+void initProcQueue(procQueue* q, int type)
+{
+  q->head = NULL;
+  q->tail = NULL;
+  q->size = 0;
+  q->type = type;
+}
