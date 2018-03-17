@@ -5,6 +5,7 @@
 #include <phase3.h>
 #include <sems.h>
 #include <string.h>
+#include <libuser.h>
 
 /*------------------ Prototypes ----------------------*/
 void checkForKernelMode(char *);
@@ -67,7 +68,7 @@ start2(char *arg)
   }
   systemCallVec[SYS_SPAWN] = spawn;
   systemCallVec[SYS_WAIT] = wait;
-  systemCallVec[SYS_TERMINATE] = wait;
+  systemCallVec[SYS_TERMINATE] = terminate;
   systemCallVec[SYS_SEMCREATE] = semCreate;
   systemCallVec[SYS_SEMP] = semP;
   systemCallVec[SYS_SEMV] = semV;
@@ -149,6 +150,11 @@ void initProc(int pid)
 {
   checkForKernelMode("initProc()");
 
+  if(debug3)
+  {
+    USLOSS_Console("Initializing process %d\n", pid);
+  }
+
   int i = pid % MAXPROC;
   
   ProcTable3[i].pid = pid;
@@ -189,7 +195,10 @@ void checkForKernelMode(char *name)
 /* set user mode */
 void setUserMode()
 {
-  USLOSS_PsrSet(USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE);
+  int result = USLOSS_PsrSet(USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE);
+
+  if(result) {
+  }
 }
 /* end set user mode */
 
@@ -205,6 +214,11 @@ void initQueue(procQueue* q, int type)
 /* enqueue */
 void enqueue(procQueue *q, procPtr3 p)
 {
+  if(debug3)
+  {
+    USLOSS_Console("In enqueue()\n");
+  }
+
   if(q->head == NULL && q->tail == NULL)
   {
     q->head = q->tail = p;
@@ -223,6 +237,11 @@ void enqueue(procQueue *q, procPtr3 p)
 
 procPtr3 dequeue(procQueue* q)
 {
+  if(debug3)
+  {
+    USLOSS_Console("In dequeue()\n");
+  }
+
   procPtr3 temp = q->head;
 
   if(q->head == NULL)
@@ -254,6 +273,11 @@ procPtr3 dequeue(procQueue* q)
 /* remove child process from queue */
 void removeChild(procQueue* q, procPtr3 child)
 {
+  if(debug3)
+  {
+    USLOSS_Console("In removeChild()\n");
+  }
+
   if(q->head == NULL || q->type != CHILDREN)
     return;
 
@@ -285,6 +309,11 @@ void removeChild(procQueue* q, procPtr3 child)
 /*return head of given queue */
 procPtr3 peek(procQueue* q)
 {
+  if(debug3)
+  {
+    USLOSS_Console("in peek()\n");
+  }
+
   if(q->head == NULL)
   {
     return NULL;
@@ -298,6 +327,11 @@ procPtr3 peek(procQueue* q)
 void spawn(USLOSS_Sysargs *args)
 {
   checkForKernelMode("spawn");
+
+  if(debug3)
+  {
+    USLOSS_Console("in spawn()\n");
+  }
 
   int (*func)(char *) = args->arg1;
   char *arg = args->arg2;
@@ -348,7 +382,7 @@ int spawnReal(char *name, int (*func)(char *), char *arg, int stack_size, int pr
 
   if(debug3)
   {
-    USLOSS_Console("spawnReal(): forked process name = %s, pid = %d\n");
+    USLOSS_Console("spawnReal(): forked process name = %s, pid = %d\n", name, pid);
   }
 
   // return -1 if fork failed
@@ -428,7 +462,7 @@ int spawnLaunch(char *startArg)
     USLOSS_Console("spawnLaunch(): terminating process %d with status %d\n", proc->pid, status);
   }
 
-  //Terminate(status);
+  Terminate(status);
  
   return 0;
 }
@@ -450,7 +484,7 @@ void wait(USLOSS_Sysargs *args)
   args->arg1 = (void *) ((long) pid);
   args->arg2 = (void *) ((long) *status);
   args->arg4 = (void *) ((long) 0);
-
+  
   // terminate if zapped
   if(isZapped())
   {
@@ -481,6 +515,11 @@ int waitReal(int *status)
 void terminate(USLOSS_Sysargs *args)
 {
   checkForKernelMode("terminate()");
+
+  if(debug3)
+  {
+    USLOSS_Console("in terminate()\n");
+  }
   
   int status = (int) ((long) args->arg1);
   terminateReal(status);
@@ -518,6 +557,11 @@ void semCreate(USLOSS_Sysargs *args)
 {
   checkForKernelMode("semCreate()");
 
+  if(debug3)
+  {
+    USLOSS_Console("in semCreate()\n");
+  }
+
   int value = (long) args->arg1;
 
   if(value < 0 || numSems == MAXSEMS)
@@ -547,6 +591,11 @@ void semCreate(USLOSS_Sysargs *args)
 int semCreateReal(int value)
 {
   checkForKernelMode("semCreateReal()");
+
+  if(debug3)
+  {
+    USLOSS_Console("in semCreateReal()\n");
+  }
 
   int i;
   int priv_mBoxID = MboxCreate(value, 0);
@@ -584,6 +633,11 @@ void semP(USLOSS_Sysargs *args)
 {
   checkForKernelMode("semP()");
  
+  if(debug3)
+  {
+    USLOSS_Console("in semP()\n");
+  }
+
   int handle = (long) args->arg1;
 
   if(handle < 0)
@@ -610,6 +664,11 @@ void semP(USLOSS_Sysargs *args)
 void semPReal(int handle)
 {
   checkForKernelMode("semPReal()");
+
+  if(debug3)
+  {
+    USLOSS_Console("semPReal()\n");
+  }
 
   // get mutex on this semaphore
   MboxSend(SemTable[handle].mutex_mBoxID, NULL, 0);
@@ -654,6 +713,11 @@ void semV(USLOSS_Sysargs *args)
 {
   checkForKernelMode("semV()");
 
+  if(debug3)
+  {
+    USLOSS_Console("in semV\n");
+  }
+
   int handle = (long) args->arg1;
 
   if(handle < 0)
@@ -682,6 +746,11 @@ void semVReal(int handle)
 {
   checkForKernelMode("semVReal()");
 
+  if(debug3)
+  {
+    USLOSS_Console("in semVReal()\n");
+  }
+
   // unblock blocked processes
   if(SemTable[handle].blockedProcs.size > 0)
   {
@@ -699,6 +768,11 @@ void semVReal(int handle)
 void semFree(USLOSS_Sysargs *args)
 {
   checkForKernelMode("semFree()");
+
+  if(debug3)
+  {
+    USLOSS_Console("in semFree()\n");
+  }
 
   int handle = (long) args->arg1;
 
@@ -727,6 +801,11 @@ void semFree(USLOSS_Sysargs *args)
 int semFreeReal(int handle)
 {
   checkForKernelMode("semFreeReal()");
+
+  if(debug3)
+  {
+    USLOSS_Console("in semFreeReal()\n");
+  }
 
   int mutexID = SemTable[handle].mutex_mBoxID;
   MboxSend(mutexID, NULL, 0);
@@ -766,6 +845,12 @@ int semFreeReal(int handle)
 void getTimeOfDay(USLOSS_Sysargs *args)
 {
   checkForKernelMode("getTimeOfDay()");
+
+  if(debug3)
+  {
+    USLOSS_Console("in getTimeOfDay()\n");
+  }
+
   *((int *)(args->arg1)) = getTime();
 }
 /* end getTime ofDay */
@@ -773,6 +858,11 @@ void getTimeOfDay(USLOSS_Sysargs *args)
 int getTime() 
 {
   int result, unit = 0, status;
+
+  if(debug3)
+  {
+    USLOSS_Console("in getTime()\n");
+  }
 
   result = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
 
@@ -788,6 +878,12 @@ int getTime()
 void cpuTime(USLOSS_Sysargs *args)
 {
   checkForKernelMode("cpuTime()");
+
+  if(debug3)
+  {
+    USLOSS_Console("in cpuTime()\n");
+  }
+
   *((int *)(args->arg1)) = readtime();
 }
 /* end cpuTime */
@@ -795,6 +891,12 @@ void cpuTime(USLOSS_Sysargs *args)
 void getPID(USLOSS_Sysargs *args)
 {
   checkForKernelMode("getPID()");
+
+  if(debug3)
+  {
+    USLOSS_Console("in getPID)\n");
+  }
+
   *((int *)(args->arg1)) = getpid();
 }
 /* end getPID */
@@ -808,6 +910,11 @@ void nullsys3(USLOSS_Sysargs *args)
 
 void initProcQueue(procQueue* q, int type)
 {
+  if(debug3)
+  {
+    USLOSS_Console("in initProcQueue()\n");
+  }
+
   q->head = NULL;
   q->tail = NULL;
   q->size = 0;
