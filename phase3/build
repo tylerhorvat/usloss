@@ -1,0 +1,83 @@
+echo "Making Test..."
+make clean
+make test00
+make test01
+make test02
+make test03
+make test04
+make test05
+make test06
+make test07
+make test08
+make test09
+make test10
+make test11
+make test12
+make test13
+make test14
+make test15
+make test16
+make test17
+make test18
+make test19
+make test20
+make test21
+make test22
+make test23
+make test24
+make test25
+echo "Running Tests..."
+test00 > test00.txt
+test01 > test01.txt
+test02 > test02.txt
+test03 > test03.txt
+test04 > test04.txt
+test05 > test05.txt
+test06 > test06.txt
+test07 > test07.txt
+test08 > test08.txt
+test09 > test09.txt
+test10 > test10.txt
+test11 > test11.txt
+test12 > test12.txt
+test13 > test13.txt
+test14 > test14.txt
+test15 > test15.txt
+test16 > test16.txt
+test17 > test17.txt
+test18 > test18.txt
+test19 > test19.txt
+test20 > test20.txt
+test21 > test21.txt
+test22 > test22.txt
+test23 > test23.txt
+test24 > test24.txt
+test25 > test25.txt
+
+echo "Creating Tests Difs..."
+diff -y test00.txt ./testResults/test00.txt > test00.dif
+diff -y test01.txt ./testResults/test01.txt > test01.dif
+diff -y test02.txt ./testResults/test02.txt > test02.dif
+diff -y test03.txt ./testResults/test03.txt > test03.dif
+diff -y test04.txt ./testResults/test04.txt > test04.dif
+diff -y test05.txt ./testResults/test05.txt > test05.dif
+diff -y test06.txt ./testResults/test06.txt > test06.dif
+diff -y test07.txt ./testResults/test07.txt > test07.dif
+diff -y test08.txt ./testResults/test08.txt > test08.dif
+diff -y test09.txt ./testResults/test09.txt > test09.dif
+diff -y test10.txt ./testResults/test10.txt > test10.dif
+diff -y test11.txt ./testResults/test11.txt > test11.dif
+diff -y test12.txt ./testResults/test12.txt > test12.dif
+diff -y test13.txt ./testResults/test13.txt > test13.dif
+diff -y test14.txt ./testResults/test14.txt > test14.dif
+diff -y test15.txt ./testResults/test15.txt > test15.dif
+diff -y test16.txt ./testResults/test16.txt > test16.dif
+diff -y test17.txt ./testResults/test17.txt > test17.dif
+diff -y test18.txt ./testResults/test18.txt > test18.dif
+diff -y test19.txt ./testResults/test19.txt > test19.dif
+diff -y test20.txt ./testResults/test20.txt > test20.dif
+diff -y test21.txt ./testResults/test21.txt > test21.dif
+diff -y test22.txt ./testResults/test22.txt > test22.dif
+diff -y test23.txt ./testResults/test23.txt > test23.dif
+diff -y test24.txt ./testResults/test24.txt > test24.dif
+diff -y test25.txt ./testResults/test25.txt > test25.dif

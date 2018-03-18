@@ -1,0 +1,26 @@
+test 00: [X]
+test 01: [X]
+test 02: [X]
+test 03: [X]
+test 04: [X]
+test 05: [X]
+test 06: [] doesnt report a child being done
+test 07: [] missing child done printline
+test 08: [X]
+test 09: [X]
+test 10: [X]
+test 11: [X]
+test 12: [X]
+test 13: [X]
+test 14: [X]
+test 15: [X]
+test 16: []	status of quit child doesnt match output 
+test 17: [X]
+test 18: [X]
+test 19: [X]
+test 20: [] I think debug mode was left on to mess this one up
+test 21: [] child reported as 0 instead of other numbers 
+test 22: [X]
+test 23: [X]
+test 24: [X]
+test 25: []	seems to stop too early. 
