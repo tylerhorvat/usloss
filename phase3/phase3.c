@@ -278,11 +278,10 @@ void removeChild(procQueue* q, procPtr3 child)
     USLOSS_Console("In removeChild()\n");
   }
 
-  if(q->head == NULL || q->type != CHILDREN)
+if (q->head == NULL || q->type != CHILDREN)
     return;
 
-  if(q->head == child)
-  {
+  if (q->head == child) {
     dequeue(q);
     return;
   }
@@ -290,11 +289,9 @@ void removeChild(procQueue* q, procPtr3 child)
   procPtr3 previous = q->head;
   procPtr3 p = q->head->nextSibling;
 
-  while(p != NULL)
-  {
-    if(p == child)
-    {
-      if(p == q->tail)
+  while (p != NULL) {
+    if (p == child) {
+      if (p == q->tail)
         q->tail = previous;
       else
         previous->nextSibling = p->nextSibling->nextSibling;
@@ -683,7 +680,7 @@ void semPReal(int handle)
 
     if(SemTable[handle].id < 0)
     {
-      terminateReal(0);
+      terminateReal(1);
     }
 
     MboxSend(SemTable[handle].mutex_mBoxID, NULL, 0);
@@ -751,17 +748,23 @@ void semVReal(int handle)
     USLOSS_Console("in semVReal()\n");
   }
 
-  // unblock blocked processes
-  if(SemTable[handle].blockedProcs.size > 0)
-  {
-    dequeue(&SemTable[handle].blockedProcs);
+ MboxSend(SemTable[handle].mutex_mBoxID, NULL, 0);
 
-    MboxReceive(SemTable[handle].mutex_mBoxID, NULL, 0);
+    // unblock blocked proc
+	if (SemTable[handle].blockedProcs.size > 0) {
+		dequeue(&SemTable[handle].blockedProcs);
 
-    MboxSend(SemTable[handle].priv_mBoxID, NULL, 0);
+		MboxReceive(SemTable[handle].mutex_mBoxID, NULL, 0); // need to receive on mutex so semP can send right after receiving on privmbox
 
-    MboxSend(SemTable[handle].mutex_mBoxID, NULL, 0);
-  }
+		MboxSend(SemTable[handle].priv_mBoxID, NULL, 0);
+
+		MboxSend(SemTable[handle].mutex_mBoxID, NULL, 0);
+	}
+	else {
+		SemTable[handle].value += 1 ;
+	}
+
+	MboxReceive(SemTable[handle].mutex_mBoxID, NULL, 0);
 }
 /* end semVReal */
 
