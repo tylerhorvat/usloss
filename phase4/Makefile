@@ -1,6 +1,6 @@
 PREFIX = ${HOME}
 
-TARGET = libphase34.a
+TARGET = libphase4.a
 ASSIGNMENT = 452phase4
 CC = gcc
 AR = ar
@@ -33,8 +33,8 @@ TESTS = test00 test01 test02 test03 test04 test05 test06 test07 test08 \
 # For Linux, the phase1 and phase2 libraries have to be here twice.
 # For OSX, it is sufficient that they appear once; however, OSX does not
 #    care if they are here twice.
-LIBS = -l$ (PHASE3LIB) -l$(PHASE2LIB) -l$(PHASE1LIB) -lusloss3.6 -l$(PHASE1LIB) -l$(PHASE2LIB) \
-       -lphase4
+LIBS = -l$(PHASE3LIB) -l$(PHASE2LIB) -l$(PHASE1LIB) -lusloss3.6 \
+       -l$(PHASE1LIB) -l$(PHASE2LIB) -l$(PHASE3LIB) -lphase4
 
 
 
@@ -49,8 +49,6 @@ clean:
 	rm -f $(COBJS) $(TARGET) test*.o test*.txt term* $(TESTS) \
 		libuser.o p1.o core
 
-phase3.o:	sems.h
-
 submit: $(CSRCS) $(HDRS) Makefile
-	tar cvzf phase4.tgz $(CSRCS) $(HDRS) Makefile
+	tar cvzf phase4.tgz $(CSRCS) Makefile
 
