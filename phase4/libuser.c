@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  File:  libuser.c
  *
  *  Description:  This file contains the interface declarations
@@ -184,7 +184,7 @@ int  TermRead(char *buff, int bsize, int unit_id, int *nread)
 	sysArg.arg3 = (void *) ((long) unit_id);		
 	
     USLOSS_Syscall(&sysArg);
-    nread = (int *) sysArg.arg1;
+    nread = (int *) sysArg.arg2;
     return (long) sysArg.arg4;	
 }
 
@@ -216,7 +216,7 @@ int  TermWrite(char *buff, int bsize, int unit_id, int *nwrite)
 	sysArg.arg3 = (void *) ((long) unit_id);		
 	
     USLOSS_Syscall(&sysArg);
-    nwrite = (int *) sysArg.arg1;
+    nwrite = (int *) sysArg.arg2;
     return (long) sysArg.arg4;	
 }
 
