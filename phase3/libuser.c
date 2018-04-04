@@ -94,8 +94,8 @@ int Wait(int *pid, int *status)
 
     USLOSS_Syscall(&sysArg);
 
-    pid = (int *) sysArg.arg1;
-    status = (int *) sysArg.arg2;
+    *pid = (int) ((long)sysArg.arg1);
+    //*status = (int) ((long)sysArg.arg2);
     return (int) ((long)sysArg.arg4);
     
 } /* end of Wait */
