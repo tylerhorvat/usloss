@@ -81,7 +81,7 @@ int  DiskRead(void *dbuff, int unit, int track, int first, int sectors, int *sta
     sysArg.arg5 = (void *) ((long) unit);		
 	
     USLOSS_Syscall(&sysArg);
-    status = (int *) sysArg.arg1;
+    *status = (int) ((long) sysArg.arg1);
     return (long) sysArg.arg4;
 }
 
@@ -120,7 +120,7 @@ int  DiskWrite(void *dbuff, int unit, int track, int first, int sectors, int *st
     sysArg.arg5 = (void *) ((long) unit);		
 	
     USLOSS_Syscall(&sysArg);
-    status = (int *) sysArg.arg1;
+    *status = (int) ((long) sysArg.arg1);
     return (long) sysArg.arg4;
 }
 
@@ -150,9 +150,9 @@ int  DiskSize(int unit, int *sector, int *track, int *disk)
     sysArg.arg1 = (void *) ((long) unit);
 	
     USLOSS_Syscall(&sysArg);
-    sector = (int *) sysArg.arg1;
-    track = (int *) sysArg.arg2;
-	disk = (int *) sysArg.arg3;
+    *sector = (int) ((long) sysArg.arg1);
+    *track = (int) ((long) sysArg.arg2);
+    *disk = (int) ((long) sysArg.arg3);
     return (long) sysArg.arg4;
 }
 
@@ -184,7 +184,8 @@ int  TermRead(char *buff, int bsize, int unit_id, int *nread)
 	sysArg.arg3 = (void *) ((long) unit_id);		
 	
     USLOSS_Syscall(&sysArg);
-    nread = (int *) sysArg.arg2;
+
+    *nread = (int) ((long)sysArg.arg2);
     return (long) sysArg.arg4;	
 }
 
@@ -216,7 +217,7 @@ int  TermWrite(char *buff, int bsize, int unit_id, int *nwrite)
 	sysArg.arg3 = (void *) ((long) unit_id);		
 	
     USLOSS_Syscall(&sysArg);
-    nwrite = (int *) sysArg.arg2;
+    *nwrite = (int) ((long) sysArg.arg2);
     return (long) sysArg.arg4;	
 }
 

@@ -739,6 +739,10 @@ void termRead(USLOSS_Sysargs * args) {
         args->arg4 = (void *) ((long) 0);
     }
     setUserMode();
+
+    if (debug4) 
+        USLOSS_Console("termRead (unit %d): retval %d \n", unit, retval);
+	
 }
 
 int termReadReal(int unit, int size, char *buffer) {

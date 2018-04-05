@@ -1,0 +1,26 @@
+Tests
+
+01: pass (incorrect sleep values but too be expected)
+02: pass
+03: pass
+04: pass
+05: pass
+06: pass
+07: hangs 
+08: pass
+09: pass
+10: pass
+11: pass
+12: pass
+13: fail incorrect disk contents on disk1
+14: fail incorrect disk contents on disk1
+15: pass
+16: diff fails 
+17: fail incorrect disk contents on disk1
+18: fail incorrect disk contents on disk1
+19: hangs
+20: hangs
+21: pass
+22: pass
+23: hangs 
+
