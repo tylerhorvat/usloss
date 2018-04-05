@@ -74,8 +74,8 @@ void
 start3(void)
 {
     char	name[128];
-    char    termbuf[10];
-    char    diskbuf[10];
+    char        termbuf[10];
+    char        diskbuf[10];
     int		i;
     int		clockPID;
     int		pid;
@@ -214,7 +214,9 @@ start3(void)
     {
         int ctrl = 0;
         ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-        USLOSS_DeviceOutput(USLOSS_TERM_DEV, i, (void *)((long) ctrl));
+        int result = USLOSS_DeviceOutput(USLOSS_TERM_DEV, i, (void *)((long) ctrl));
+
+        if(result) {}
 
         // file stuff
         sprintf(filename, "term%d.in", i);
@@ -237,12 +239,14 @@ start3(void)
 static int
 ClockDriver(char *arg)
 {
-      int result;
+    int result;
     int status;
 
     // Let the parent know we are running and enable interrupts.
     semvReal(running);
-    USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
+    int result2 = USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
+
+    if(result2) {}
 
     // Infinite loop until we are zap'd
     while(! isZapped()) {
@@ -264,6 +268,7 @@ ClockDriver(char *arg)
 
         }
     }
+    return 0;
 }
 
 /* Disk Driver */
@@ -285,7 +290,9 @@ DiskDriver(char *arg)
 
     // Let the parent know we are running and enable interrupts.
     semvReal(running);
-    USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
+    int result2 = USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
+
+    if(result2) {}
 
     // Infinite loop until we are zap'd
     while(!isZapped()) {
@@ -308,7 +315,10 @@ DiskDriver(char *arg)
 
             // handle tracks request
             if (proc->diskRequest.opr == USLOSS_DISK_TRACKS) {
-                USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &proc->diskRequest);
+                int result3 = USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &proc->diskRequest);
+                 
+                if(result3) {}
+
                 result = waitDevice(USLOSS_DISK_DEV, unit, &status);
                 if (result != 0) {
                     //USLOSS_Console("exiting deskdriver 1\n");
@@ -322,7 +332,10 @@ DiskDriver(char *arg)
                     USLOSS_DeviceRequest request;
                     request.opr = USLOSS_DISK_SEEK;
                     request.reg1 = &track;
-                    USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &request);
+                    int result4 = USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &request);
+                    
+                    if(result4) {}
+
                     // wait for result
                     result = waitDevice(USLOSS_DISK_DEV, unit, &status);
                     if (result != 0) {
@@ -338,7 +351,10 @@ DiskDriver(char *arg)
                     int s;
                     for (s = proc->diskFirstSec; proc->diskSectors > 0 && s < USLOSS_DISK_TRACK_SIZE; s++) {
                         proc->diskRequest.reg1 = (void *) ((long) s);
-                        USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &proc->diskRequest);
+                        int result5 = USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &proc->diskRequest);
+                        
+                        if(result5) {}
+
                         result = waitDevice(USLOSS_DISK_DEV, unit, &status);
                         if (result != 0) {
                             //USLOSS_Console("exiting diskdriver 3\n");
@@ -481,7 +497,9 @@ TermWriter(char * arg)
 
         // enable xmit interrupt and receive interrupt
         ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
-        USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+        int result = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+
+        if(result) {}
 
         // xmit the line
         next = 0;
@@ -499,7 +517,9 @@ TermWriter(char * arg)
                 ctrl = USLOSS_TERM_CTRL_XMIT_CHAR(ctrl);
                 ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
 
-                USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+                int result2 = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+            
+                if(result2) {}
             }
 
             next++;
@@ -509,7 +529,10 @@ TermWriter(char * arg)
         ctrl = 0;
         if (termInt[unit] == 1) 
             ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-        USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+        int result3 = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+        
+        if(result3) {}
+
         termInt[unit] = 0;
         int pid; 
         MboxReceive(pidMbox[unit], &pid, sizeof(int));
@@ -761,7 +784,10 @@ int termReadReal(int unit, int size, char *buffer) {
         if (debug4)
             USLOSS_Console("termReadReal enable interrupts\n");
         ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-        USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+        int result = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+
+        if(result) {}
+
         termInt[unit] = 1;
 		if(debug4)
 			USLOSS_Console("made it past interrupts\n");
@@ -849,7 +875,9 @@ void checkForKernelMode(char *name)
    ------------------------------------------------------------------------ */
 void setUserMode()
 {
-    USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
+    int result = USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
+
+    if(result) {}
 }
 
 /* initializes proc struct */
