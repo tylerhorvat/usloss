@@ -12,7 +12,7 @@ PHASE1LIB = patrickphase1
 PHASE2LIB = patrickphase2
 PHASE3LIB = patrickphase3
 
-HDRS = sems.h
+HDRS = proc4structs.h
 
 INCLUDE = ${PREFIX}/include
 
@@ -50,5 +50,5 @@ clean:
 		libuser.o p1.o core
 
 submit: $(CSRCS) $(HDRS) Makefile
-	tar cvzf phase4.tgz $(CSRCS) Makefile
+	tar cvzf phase4.tgz $(CSRCS) Makefile proc4structs.h
 
