@@ -13,7 +13,7 @@
 
 #define ABS(a,b) (a-b > 0 ? a-b : -(a-b))
 
-int debug4 = 0;
+int debug4 = 1;
 int running;
 
 static int ClockDriver(char *);
@@ -65,11 +65,17 @@ int charSendMbox[USLOSS_TERM_UNITS]; // send char
 int lineReadMbox[USLOSS_TERM_UNITS]; // read line
 int lineWriteMbox[USLOSS_TERM_UNITS]; // write line
 int pidMbox[USLOSS_TERM_UNITS]; // pid to block
-int termInt[USLOSS_TERM_UNITS]; // interupt for term (control writing)
+int termInt[USLOSS_TERM_UNITS]; // interrupt for term (control writing)
 
 int termProcTable[USLOSS_TERM_UNITS][3]; // keep track of term procs
 
 
+/* ------------------------------------------------------------------------
+   Name - start3
+   Purpose -  manages all startups and shutdowns of functions in phase4 
+   Parameters - None.   
+   Side Effects - process tables and mailboxes are initalized 
+   ------------------------------------------------------------------------ */
 void
 start3(void)
 {
@@ -88,7 +94,6 @@ start3(void)
 
     // initialize proc table
     for (i = 0; i < MAXPROC; i++) {
-        //emptyProc(i); Idk why this was here instead of initProc
         initProc(i);
     }
 
@@ -235,10 +240,15 @@ start3(void)
     
 }
 
+/* ------------------------------------------------------------------------
+   Name - ClockDriver
+   Purpose - used for delay implementation, can sleep and wake up processes. 
+   Parameters - a single char * pointer for unit location.   
+   Side Effects - processes sleeped and woken up.  
+   ------------------------------------------------------------------------ */
 /* Clock Driver */
 static int
-ClockDriver(char *arg)
-{
+ClockDriver(char *arg) {
     int result;
     int status;
 
@@ -250,14 +260,14 @@ ClockDriver(char *arg)
 
     // Infinite loop until we are zap'd
     while(! isZapped()) {
-	result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
-	if (result != 0) {
-	    return 0;
-	}
-	/*
-	 * Compute the current time and wake up any processes
-	 * whose time has come.
-	 */
+		result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
+		if (result != 0) {
+			return 0;
+		}
+		/*
+		* Compute the current time and wake up any processes
+		* whose time has come.
+		*/
         procPtr proc;
         while(sleepHeap.size > 0 && getTime() >= heapPeek(&sleepHeap)->wakeTime)
         {
@@ -265,12 +275,394 @@ ClockDriver(char *arg)
             if(debug4)
                 USLOSS_Console("ClockDriver: Waking up process %d", proc->pid);
             semvReal(proc->blockSem);
-
         }
     }
     return 0;
 }
 
+/* ------------------------------------------------------------------------
+   Name - sleep
+   Purpose - used to get the values out of sysargs and to call sleepReal
+   Parameters - single sysargs *args that contains the values  
+   Side Effects - calls sleepReal and sets user mode.  
+   ------------------------------------------------------------------------ */
+/* sleep function value extraction */
+void sleep(USLOSS_Sysargs * args) {
+    checkForKernelMode("sleep()");
+    int seconds = (long) args->arg1;
+	
+    int retval = sleepReal(seconds);
+	
+    args->arg4 = (void *) ((long) retval);
+    setUserMode();
+}
+
+/* ------------------------------------------------------------------------
+   Name - sleepReal
+   Purpose - used to sleep a process for the desired time 
+   Parameters - an int seconds for duration of sleep   
+   Side Effects - process at current PID sleeps for desired seconds. 
+   ------------------------------------------------------------------------ */
+/* real sleep function */
+int sleepReal(int seconds) {
+    checkForKernelMode("sleepReal()");
+
+    if (debug4) 
+        USLOSS_Console("sleepReal: called for process %d with %d seconds\n", getpid(), seconds);
+
+    if (seconds < 0) {
+        return -1;
+    }
+
+    // init/get the process
+    if (ProcTable[getpid() % MAXPROC].pid == -1) {
+        initProc(getpid());
+    }
+    procPtr proc = &ProcTable[getpid() % MAXPROC];
+    
+    // set wake time
+    proc->wakeTime = getTime() + seconds*1000000;
+    if (debug4) 
+        USLOSS_Console("sleepReal: set wake time for process %d to %d, adding to heap...\n", proc->pid, proc->wakeTime);
+
+    heapAdd(&sleepHeap, proc); // add to sleep heap
+    //if (debug4) 
+      //  USLOSS_Console("sleepReal: Process %d going to sleep until %d\n", proc->pid, proc->wakeTime);
+    sempReal(proc->blockSem); // block the process
+    //if (debug4) 
+      //  USLOSS_Console("sleepReal: Process %d woke up, time is %d\n", proc->pid, USLOSS_Clock());
+    return 0;
+}
+
+/* ------------------------------------------------------------------------
+   Name - TermDriver
+   Purpose - manages and maintains the terminals for reading and writing. 
+   Parameters - *arg that acts as a value in an array for messages  
+   Side Effects - various processes maintained.  
+   ------------------------------------------------------------------------ */
+/* Terminal Driver */
+static int
+TermDriver(char *arg) {
+    int result;
+    int status;
+    int unit = atoi( (char *) arg);     // Unit is passed as arg.
+
+    if (debug4) 
+        USLOSS_Console("TermDriver (unit %d): running\n", unit);
+
+    // Let the parent know we are running
+	semvReal(running);
+	
+    while (!isZapped()) {
+        result = waitDevice(USLOSS_TERM_INT, unit, &status);
+        if (result != 0) {
+            return 0;
+        }
+	
+        // Try to receive character
+        int recv = USLOSS_TERM_STAT_RECV(status);
+        if (recv == USLOSS_DEV_BUSY) {
+            MboxCondSend(charRecvMbox[unit], &status, sizeof(int));
+        }
+        else if (recv == USLOSS_DEV_ERROR) {
+            if (debug4) 
+                USLOSS_Console("TermDriver RECV ERROR\n");
+        }
+
+        // Try to send character
+        int xmit = USLOSS_TERM_STAT_XMIT(status);
+        if (xmit == USLOSS_DEV_READY) {
+			USLOSS_Console("TermDriver: before charSendMbox\n");
+            MboxCondSend(charSendMbox[unit], &status, sizeof(int));
+			USLOSS_Console("TermDriver: after charSendMbox\n");
+        }
+        else if (xmit == USLOSS_DEV_ERROR) {
+            if (debug4) 
+                USLOSS_Console("TermDriver XMIT ERROR\n");
+        }
+    }
+
+    return 0;
+}
+
+/* ------------------------------------------------------------------------
+   Name - TermReader
+   Purpose - used to get values from args and to call other processes to write to read from a terminal.
+   Parameters - a char *args.  
+   Side Effects - operates the small termReader and controls other processes. 
+   ------------------------------------------------------------------------ */
+/* Terminal Reader */
+static int 
+TermReader(char * arg) {
+    int unit = atoi( (char *) arg);     // Unit is passed as arg.
+    int i;
+    int receive; // char to receive
+    char line[MAXLINE]; // line being created/read
+    int next = 0; // index in line to write char
+
+    if (debug4) 
+        USLOSS_Console("TermReader (unit %d): running\n", unit);
+
+    // Let the parent know we are running
+	semvReal(running);
+
+    for (i = 0; i < MAXLINE; i++) { 
+        line[i] = '\0';
+    }
+
+    while (!isZapped()) {
+        // receieve characters
+        MboxReceive(charRecvMbox[unit], &receive, sizeof(int));
+        char ch = USLOSS_TERM_STAT_CHAR(receive);
+        line[next] = ch;
+        next++;
+
+        // receive line
+        if (ch == '\n' || next == MAXLINE) {
+            if (debug4) 
+                USLOSS_Console("TermReader (unit %d): line send\n", unit);
+
+            line[next] = '\0'; // end with null
+            MboxSend(lineReadMbox[unit], line, next);
+
+            // reset line
+            for (i = 0; i < MAXLINE; i++) {
+                line[i] = '\0';
+            } 
+            next = 0;
+        }
+    }
+    return 0;
+}
+/* ------------------------------------------------------------------------
+   Name - termRead
+   Purpose - used get values from sysargs to pass to termReadReal. 
+   Parameters - single sysargs pointer args.  
+   Side Effects - sends to termReadReal and sets the mode. 
+   ------------------------------------------------------------------------ */
+
+/* termRead */
+void termRead(USLOSS_Sysargs * args) {
+    if (debug4)
+        USLOSS_Console("termRead\n");
+    checkForKernelMode("termRead()");
+    
+    char *buffer = (char *) args->arg1;
+    int size = (long) args->arg2;
+    int unit = (long) args->arg3;
+
+    long retval = termReadReal(unit, size, buffer);
+
+    if (retval == -1) {
+        args->arg2 = (void *) ((long) retval);
+        args->arg4 = (void *) ((long) -1);
+    } else {
+        args->arg2 = (void *) ((long) retval);
+        args->arg4 = (void *) ((long) 0);
+    }
+    setUserMode();
+
+    if (debug4) 
+        USLOSS_Console("termRead (unit %d): retval %d \n", unit, retval);
+	
+}
+
+/* ------------------------------------------------------------------------
+   Name - termReadReal
+   Purpose - used to read a message from a terminal 
+   Parameters - int unit, int size, and a char *buffer.  
+   Side Effects - reads from a terminal and can wake up other processes  
+   ------------------------------------------------------------------------ */
+/* termReadReal */
+int termReadReal(int unit, int size, char *buffer) {
+    if (debug4)
+        USLOSS_Console("termReadReal\n");
+    checkForKernelMode("termReadReal");
+
+    if (unit < 0 || unit > USLOSS_TERM_UNITS - 1 || size <= 0) {
+        return -1;
+    }
+    char line[MAXLINE];
+    int ctrl = 0;
+
+    //enable term receive interrupts
+    if (termInt[unit] == 0) {
+        ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
+        int result = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+        if(result) {}
+        termInt[unit] = 1;
+		
+        if (debug4)
+            USLOSS_Console("termReadReal: enable term receive interrupts\n");
+    }
+
+    int retval = MboxReceive(lineReadMbox[unit], &line, MAXLINE);
+	if(debug4)
+			USLOSS_Console("termReadReal: after mailbox\n");
+
+    if (debug4) 
+        USLOSS_Console("termReadReal: unit %d, size %d, retval %d\n", unit, size, retval);
+
+    if (retval > size) {
+        retval = size;
+    }
+	
+	if(debug4)
+			USLOSS_Console("termReadReal: right before buffer\n");
+    memcpy(buffer, line, retval);
+	
+	if(debug4)
+			USLOSS_Console("termReadReal: size %d, retval %d\n", size, retval);
+
+    return retval;
+}
+/* ------------------------------------------------------------------------
+   Name - TermWriter
+   Purpose - used to get values from args and to call other processes to write to a terminal.
+   Parameters - a char *args.  
+   Side Effects - operates the small termWriter and writes to a terminal. 
+   ------------------------------------------------------------------------ */
+/* Terminal Writer */
+static int 
+TermWriter(char * arg) {
+    int unit = atoi( (char *) arg);     // Unit is passed as arg.
+    int size;
+    int ctrl = 0;
+    int next;
+    int status;
+    char line[MAXLINE];
+
+    if (debug4) 
+        USLOSS_Console("TermWriter (unit %d): running\n", unit);
+
+    // Let the parent know we are running
+	semvReal(running);
+
+    while (!isZapped()) {
+        size = MboxReceive(lineWriteMbox[unit], line, MAXLINE); // get line and size
+		//USLOSS_Console("TermWriter: unit %d, size %d\n", unit, size);	
+		
+        if (isZapped()) {
+			//USLOSS_Console("TermWriter: break\n");
+            break;
+		}
+		
+        // enable xmit interrupt
+        //ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
+        //int result = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+        //if(result) {}
+
+        // xmit the line
+        next = 0;
+        while (next < size) {
+			USLOSS_Console("TermWriter: before MboxReceive\n");			
+            MboxReceive(charSendMbox[unit], &status, sizeof(int));
+			USLOSS_Console("TermWriter: after MboxReceive\n");
+			
+            // xmit the character
+            int x = USLOSS_TERM_STAT_XMIT(status);
+            if (x == USLOSS_DEV_READY) {
+                //USLOSS_Console("TermWriter: %c string %d unit\n", line[next], unit);
+
+                ctrl = 0;
+                ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
+                ctrl = USLOSS_TERM_CTRL_CHAR(ctrl, line[next]);
+                ctrl = USLOSS_TERM_CTRL_XMIT_CHAR(ctrl);
+                ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
+
+				if (debug4)
+					USLOSS_Console("TermWriter: enable term transmit interrupts\n");
+
+                int result2 = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+                if(result2) {}
+            }
+
+            next++;
+        }
+
+        // enable receive interrupt
+        ctrl = 0;
+        if (termInt[unit] == 1) {
+            ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
+			int result3 = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
+			if(result3) {}
+			termInt[unit] = 0;
+
+			if (debug4)
+				USLOSS_Console("TermWriter: enable term receive interrupts\n");
+		}
+		
+        int pid; 
+        MboxReceive(pidMbox[unit], &pid, sizeof(int));
+        semvReal(ProcTable[pid % MAXPROC].blockSem);
+		USLOSS_Console("TermWriter: pid %d unblocked\n", pid);	           
+    }
+
+    return 0;
+}
+
+/* ------------------------------------------------------------------------
+   Name - termWrite
+   Purpose - used to get the values from sysargs and to call termWriteReal.
+   Parameters - USLOSS sysargs.  
+   Side Effects - calls termWriteReal and sets the user mode.  
+   ------------------------------------------------------------------------ */
+void termWrite(USLOSS_Sysargs * args) {
+    if (debug4)
+        USLOSS_Console("termWrite\n");
+    checkForKernelMode("termWrite()");
+    
+    char *text = (char *) args->arg1;
+    int size = (long) args->arg2;
+    int unit = (long) args->arg3;
+
+    long retval = termWriteReal(unit, size, text);
+
+    if (retval == -1) {
+        args->arg2 = (void *) ((long) retval);
+        args->arg4 = (void *) ((long) -1);
+    } else {
+        args->arg2 = (void *) ((long) retval);
+        args->arg4 = (void *) ((long) 0);
+    }
+    setUserMode(); 
+}
+
+
+/* ------------------------------------------------------------------------
+   Name - termWriteReal
+   Purpose - the kernel level terminal writer that wakes writes to terminals
+   Parameters - unit value unit, int size, and char *text for the message.   
+   Side Effects - processes can be woken up or can wait on another process. 
+   ------------------------------------------------------------------------ */
+/* termWriteReal */
+int termWriteReal(int unit, int size, char *text) {
+    if (debug4)
+        USLOSS_Console("termWriteReal\n");
+    checkForKernelMode("termWriteReal()");
+
+    if (unit < 0 || unit > USLOSS_TERM_UNITS - 1 || size < 0) {
+        return -1;
+    }
+		
+    int pid = getpid();
+    USLOSS_Console("termWriteReal: 574 pid %d\n", pid);	
+    MboxSend(pidMbox[unit], &pid, sizeof(int));
+    USLOSS_Console("termWriteReal: 576 size %d\n", size);
+    MboxSend(lineWriteMbox[unit], text, size);
+    USLOSS_Console("termWriteReal: pid %d blocked\n", pid);	
+    sempReal(ProcTable[pid % MAXPROC].blockSem);
+    USLOSS_Console("termWriteReal: 580 sempReal return\n ");    
+	return size;
+}
+
+
+/* ------------------------------------------------------------------------
+   Name - diskDriver
+   Purpose - used run and operate the disks functions
+   Parameters - a char* arg for units in queues.  
+   Side Effects - 	queue values can be moved around or killed. 
+   ------------------------------------------------------------------------ */
 /* Disk Driver */
 static int
 DiskDriver(char *arg)
@@ -384,206 +776,17 @@ DiskDriver(char *arg)
 
     }
 
-    semvReal(running); // unblock parent
+    //semvReal(running); // unblock parent
     //USLOSS_Console("exiting diskDriver\n");
     return 0;
 }
 
-/* Terminal Driver */
-static int
-TermDriver(char *arg)
-{
-    int result;
-    int status;
-    int unit = atoi( (char *) arg);     // Unit is passed as arg.
-
-    semvReal(running);
-    if (debug4) 
-        USLOSS_Console("TermDriver (unit %d): running\n", unit);
-
-    while (!isZapped()) {
-
-        result = waitDevice(USLOSS_TERM_INT, unit, &status);
-        if (result != 0) {
-            return 0;
-        }
-
-        // Try to receive character
-        int recv = USLOSS_TERM_STAT_RECV(status);
-        if (recv == USLOSS_DEV_BUSY) {
-            MboxCondSend(charRecvMbox[unit], &status, sizeof(int));
-        }
-        else if (recv == USLOSS_DEV_ERROR) {
-            if (debug4) 
-                USLOSS_Console("TermDriver RECV ERROR\n");
-        }
-
-        // Try to send character
-        int xmit = USLOSS_TERM_STAT_XMIT(status);
-        if (xmit == USLOSS_DEV_READY) {
-            MboxCondSend(charSendMbox[unit], &status, sizeof(int));
-        }
-        else if (xmit == USLOSS_DEV_ERROR) {
-            if (debug4) 
-                USLOSS_Console("TermDriver XMIT ERROR\n");
-        }
-    }
-
-    return 0;
-}
-
-/* Terminal Reader */
-static int 
-TermReader(char * arg) 
-{
-    int unit = atoi( (char *) arg);     // Unit is passed as arg.
-    int i;
-    int receive; // char to receive
-    char line[MAXLINE]; // line being created/read
-    int next = 0; // index in line to write char
-
-    for (i = 0; i < MAXLINE; i++) { 
-        line[i] = '\0';
-    }
-
-    semvReal(running);
-    while (!isZapped()) {
-        // receieve characters
-        MboxReceive(charRecvMbox[unit], &receive, sizeof(int));
-        char ch = USLOSS_TERM_STAT_CHAR(receive);
-        line[next] = ch;
-        next++;
-
-        // receive line
-        if (ch == '\n' || next == MAXLINE) {
-            if (debug4) 
-                USLOSS_Console("TermReader (unit %d): line send\n", unit);
-
-            line[next] = '\0'; // end with null
-            MboxSend(lineReadMbox[unit], line, next);
-
-            // reset line
-            for (i = 0; i < MAXLINE; i++) {
-                line[i] = '\0';
-            } 
-            next = 0;
-        }
-
-
-    }
-    return 0;
-}
-
-/* Terminal Writer */
-static int 
-TermWriter(char * arg) 
-{
-    int unit = atoi( (char *) arg);     // Unit is passed as arg.
-    int size;
-    int ctrl = 0;
-    int next;
-    int status;
-    char line[MAXLINE];
-
-    semvReal(running);
-    if (debug4) 
-        USLOSS_Console("TermWriter (unit %d): running\n", unit);
-
-    while (!isZapped()) {
-        size = MboxReceive(lineWriteMbox[unit], line, MAXLINE); // get line and size
-
-        if (isZapped())
-            break;
-
-        // enable xmit interrupt and receive interrupt
-        ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
-        int result = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
-
-        if(result) {}
-
-        // xmit the line
-        next = 0;
-        while (next < size) {
-            MboxReceive(charSendMbox[unit], &status, sizeof(int));
-
-            // xmit the character
-            int x = USLOSS_TERM_STAT_XMIT(status);
-            if (x == USLOSS_DEV_READY) {
-                //USLOSS_Console("%c string %d unit\n", line[next], unit);
-
-                ctrl = 0;
-                //ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-                ctrl = USLOSS_TERM_CTRL_CHAR(ctrl, line[next]);
-                ctrl = USLOSS_TERM_CTRL_XMIT_CHAR(ctrl);
-                ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
-
-                int result2 = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
-            
-                if(result2) {}
-            }
-
-            next++;
-        }
-
-        // enable receive interrupt
-        ctrl = 0;
-        if (termInt[unit] == 1) 
-            ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-        int result3 = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
-        
-        if(result3) {}
-
-        termInt[unit] = 0;
-        int pid; 
-        MboxReceive(pidMbox[unit], &pid, sizeof(int));
-        semvReal(ProcTable[pid % MAXPROC].blockSem);
-        
-        
-    }
-
-    return 0;
-}
-
-/* sleep function value extraction */
-void sleep(USLOSS_Sysargs * args) {
-    checkForKernelMode("sleep()");
-    int seconds = (long) args->arg1;
-    int retval = sleepReal(seconds);
-    args->arg4 = (void *) ((long) retval);
-    setUserMode();
-}
-
-/* real sleep function */
-int sleepReal(int seconds) {
-    checkForKernelMode("sleepReal()");
-
-    if (debug4) 
-        USLOSS_Console("sleepReal: called for process %d with %d seconds\n", getpid(), seconds);
-
-    if (seconds < 0) {
-        return -1;
-    }
-
-    // init/get the process
-    if (ProcTable[getpid() % MAXPROC].pid == -1) {
-        initProc(getpid());
-    }
-    procPtr proc = &ProcTable[getpid() % MAXPROC];
-    
-    // set wake time
-    proc->wakeTime = getTime() + seconds*1000000;
-    if (debug4) 
-        USLOSS_Console("sleepReal: set wake time for process %d to %d, adding to heap...\n", proc->pid, proc->wakeTime);
-
-    heapAdd(&sleepHeap, proc); // add to sleep heap
-    //if (debug4) 
-      //  USLOSS_Console("sleepReal: Process %d going to sleep until %d\n", proc->pid, proc->wakeTime);
-    sempReal(proc->blockSem); // block the process
-    //if (debug4) 
-      //  USLOSS_Console("sleepReal: Process %d woke up, time is %d\n", proc->pid, USLOSS_Clock());
-    return 0;
-}
-
+/* ------------------------------------------------------------------------
+   Name - diskRead
+   Purpose - used to get the values from sysargs and to call diskReadeReal.
+   Parameters - USLOSS sysargs.  
+   Side Effects - sets user mode. 
+   ------------------------------------------------------------------------ */
 /* extract values from sysargs and call diskReadReal */
 void diskRead(USLOSS_Sysargs * args) {
     checkForKernelMode("diskRead()");
@@ -605,6 +808,12 @@ void diskRead(USLOSS_Sysargs * args) {
     setUserMode();
 }
 
+/* ------------------------------------------------------------------------
+   Name - diskWrite
+   Purpose - used to get the values from sysargs and to call diskWriteReal.
+   Parameters - USLOSS sysargs.  
+   Side Effects - sets user mode. 
+   ------------------------------------------------------------------------ */
 /* extract values from sysargs and call diskWriteReal */
 void diskWrite(USLOSS_Sysargs * args) {
     checkForKernelMode("diskWrite()");
@@ -683,6 +892,12 @@ int diskReadOrWriteReal(int unit, int track, int first, int sectors, void *buffe
     return result;
 }
 
+/* ------------------------------------------------------------------------
+   Name - diskSize 
+   Purpose - extracts the values from sysargs and to call diskSizeReal.
+   Parameters - USLOSS sysarg args. 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 /* extract values from sysargs and call diskSizeReal */
 void diskSize(USLOSS_Sysargs * args) {
     checkForKernelMode("diskSize()");
@@ -743,113 +958,6 @@ int diskSizeReal(int unit, int *sector, int *track, int *disk) {
     return 0;
 }
 
-void termRead(USLOSS_Sysargs * args) {
-    if (debug4)
-        USLOSS_Console("termRead\n");
-    checkForKernelMode("termRead()");
-    
-    char *buffer = (char *) args->arg1;
-    int size = (long) args->arg2;
-    int unit = (long) args->arg3;
-
-    long retval = termReadReal(unit, size, buffer);
-
-    if (retval == -1) {
-        args->arg2 = (void *) ((long) retval);
-        args->arg4 = (void *) ((long) -1);
-    } else {
-        args->arg2 = (void *) ((long) retval);
-        args->arg4 = (void *) ((long) 0);
-    }
-    setUserMode();
-
-    if (debug4) 
-        USLOSS_Console("termRead (unit %d): retval %d \n", unit, retval);
-	
-}
-
-int termReadReal(int unit, int size, char *buffer) {
-    if (debug4)
-        USLOSS_Console("termReadReal\n");
-    checkForKernelMode("termReadReal");
-
-    if (unit < 0 || unit > USLOSS_TERM_UNITS - 1 || size <= 0) {
-        return -1;
-    }
-    char line[MAXLINE];
-    int ctrl = 0;
-
-    //enable term interrupts
-    if (termInt[unit] == 0) {
-        if (debug4)
-            USLOSS_Console("termReadReal enable interrupts\n");
-        ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-        int result = USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *) ((long) ctrl));
-
-        if(result) {}
-
-        termInt[unit] = 1;
-		if(debug4)
-			USLOSS_Console("made it past interrupts\n");
-    }
-
-    int retval = MboxReceive(lineReadMbox[unit], &line, MAXLINE);
-	if(debug4)
-			USLOSS_Console("after mailbox\n");
-
-    if (debug4) 
-        USLOSS_Console("termReadReal (unit %d): size %d retval %d \n", unit, size, retval);
-
-    if (retval > size) {
-        retval = size;
-	
-    }
-	if(debug4)
-			USLOSS_Console("right before buffer\n");
-    memcpy(buffer, line, retval);
-	if(debug4)
-			USLOSS_Console("size is %d and retval is %d\n", size, retval);
-
-    return retval;
-}
-
-void termWrite(USLOSS_Sysargs * args) {
-    if (debug4)
-        USLOSS_Console("termWrite\n");
-    checkForKernelMode("termWrite()");
-    
-    char *text = (char *) args->arg1;
-    int size = (long) args->arg2;
-    int unit = (long) args->arg3;
-
-    long retval = termWriteReal(unit, size, text);
-
-    if (retval == -1) {
-        args->arg2 = (void *) ((long) retval);
-        args->arg4 = (void *) ((long) -1);
-    } else {
-        args->arg2 = (void *) ((long) retval);
-        args->arg4 = (void *) ((long) 0);
-    }
-    setUserMode(); 
-}
-
-int termWriteReal(int unit, int size, char *text) {
-    if (debug4)
-        USLOSS_Console("termWriteReal\n");
-    checkForKernelMode("termWriteReal()");
-
-    if (unit < 0 || unit > USLOSS_TERM_UNITS - 1 || size < 0) {
-        return -1;
-    }
-
-    int pid = getpid();
-    MboxSend(pidMbox[unit], &pid, sizeof(int));
-
-    MboxSend(lineWriteMbox[unit], text, size);
-    sempReal(ProcTable[pid % MAXPROC].blockSem);
-    return size;
-}
 
 /* ------------------------------------------------------------------------
    Name - requireKernelMode
@@ -880,6 +988,12 @@ void setUserMode()
     if(result) {}
 }
 
+/* ------------------------------------------------------------------------
+   Name - initProc
+   Purpose - initalizes the passed in pid location to be used by a process 
+   Parameters - int pid of process to be initalized 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 /* initializes proc struct */
 void initProc(int pid) {
     checkForKernelMode("initProc()"); 
@@ -895,6 +1009,12 @@ void initProc(int pid) {
     ProcTable[i].prevDiskPtr = NULL;
 }
 
+/* ------------------------------------------------------------------------
+   Name - emptyProc
+   Purpose - cleans out an entry in the process table to be reused 
+   Parameters - int pid of process to be cleaned. 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 /* empties proc struct */
 void emptyProc(int pid) {
     checkForKernelMode("emptyProc()"); 
@@ -913,6 +1033,12 @@ void emptyProc(int pid) {
   Functions for the dskQueue and heap.
    ----------------------------------------------------------------------- */
 
+   /* ------------------------------------------------------------------------
+   Name - initDiskQueue
+   Purpose - initalizes the passed in diskQueue
+   Parameters - diskQueue q. 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 /* Initialize the given diskQueue */
 void initDiskQueue(diskQueue* q) {
     q->head = NULL;
@@ -921,6 +1047,12 @@ void initDiskQueue(diskQueue* q) {
     q->size = 0;
 }
 
+/* ------------------------------------------------------------------------
+   Name - addDiskQ
+   Purpose - adds a process pointer to the passed in queue in a sorted order
+   Parameters - a diskQueue pointer q, and a procPtr p. 
+   Side Effects - process is added to the queue. 
+   ------------------------------------------------------------------------ */
 /* Adds the proc pointer to the disk queue in sorted order */
 void addDiskQ(diskQueue* q, procPtr p) {
     if (debug4)
@@ -960,6 +1092,13 @@ void addDiskQ(diskQueue* q, procPtr p) {
         USLOSS_Console("addDiskQ: add complete, size = %d\n", q->size);
 } 
 
+/* ------------------------------------------------------------------------
+   Name - peekDiskQ
+   Purpose - returns the next process pointer 
+   Parameters - a disk queue q. 
+   Side Effects - None. 
+   returns - a procPtr. 
+   ------------------------------------------------------------------------ */
 /* Returns the next proc on the disk queue */
 procPtr peekDiskQ(diskQueue* q) {
     if (q->curr == NULL) {
@@ -969,6 +1108,12 @@ procPtr peekDiskQ(diskQueue* q) {
     return q->curr;
 }
 
+/* ------------------------------------------------------------------------
+   Name - removeDiskQ
+   Purpose - returns and removes a disk from the passed in disk queue. 
+   Parameters - a diskQueue q. 
+   Side Effects - next process removed from the queue. 
+   ------------------------------------------------------------------------ */
 /* Returns and removes the next proc on the disk queue */
 procPtr removeDiskQ(diskQueue* q) {
     if (q->size == 0)
@@ -1016,11 +1161,23 @@ procPtr removeDiskQ(diskQueue* q) {
 } 
 
 
+/* ------------------------------------------------------------------------
+   Name - initHeap
+   Purpose - initializes a heap. 
+   Parameters - heap pointer h. 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 /* Setup heap, implementation based on https://gist.github.com/aatishnn/8265656 */
 void initHeap(heap* h) {
     h->size = 0;
 }
 
+/* ------------------------------------------------------------------------
+   Name - heapAdd
+   Purpose - adds a process pointer to the passed in heap
+   Parameters - heap ponter h, procPtr p. 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 /* Add to heap */
 void heapAdd(heap * h, procPtr p) {
     // start from bottom and find correct place
@@ -1038,11 +1195,23 @@ void heapAdd(heap * h, procPtr p) {
         USLOSS_Console("heapAdd: Added proc %d to heap at index %d, size = %d\n", p->pid, i, h->size);
 } 
 
+/* ------------------------------------------------------------------------
+   Name - heapPeak
+   Purpose - returns the top of the heap
+   Parameters - a heap pointer *h. 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 /* Return min process on heap */
 procPtr heapPeek(heap * h) {
     return h->procs[0];
 }
 
+/* ------------------------------------------------------------------------
+   Name - heapRemove
+   Purpose - removes the earliest waking process from the heap  
+   Parameters - a heap pointer *h. 
+   Side Effects - heap pointer removed from passed list. 
+   ------------------------------------------------------------------------ */
 /* Remove earlist waking process form the heap */
 procPtr heapRemove(heap * h) {
   if (h->size == 0)
@@ -1079,6 +1248,13 @@ procPtr heapRemove(heap * h) {
         USLOSS_Console("heapRemove: Called, returning pid %d, size = %d\n", removed->pid, h->size);
     return removed;
 }
+
+/* ------------------------------------------------------------------------
+   Name - getTime
+   Purpose - gets the current time 
+   Parameters - None. 
+   Side Effects - None. 
+   ------------------------------------------------------------------------ */
 
 int getTime() 
 {
