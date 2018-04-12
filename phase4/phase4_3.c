@@ -1098,11 +1098,6 @@ int getTime()
 {
   int result, unit = 0, status;
 
-  if(debug4)
-  {
-    USLOSS_Console("in getTime()\n");
-  }
-
   result = USLOSS_DeviceInput(USLOSS_CLOCK_DEV, unit, &status);
 
   if(result == USLOSS_DEV_INVALID)
