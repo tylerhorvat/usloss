@@ -19,6 +19,10 @@
 #include <vm.h>
 #include <string.h>
 
+void vmDestroyReal(void);
+void * vmInitReal(int, int, int, int);
+
+
 static int Pager(char *buf);
 void printPageTable(int pid);
 
@@ -38,12 +42,14 @@ FaultMsg faults[MAXPROC]; /* Note that a process can have only
 VmStats  vmStats;
 
 
-static void FaultHandler(int type, void * offset);
+static void FaultHandler(int type, int offset); //djf static void FaultHandler(int type, void * offset);
 
 static void vmInit(USLOSS_Sysargs *USLOSS_SysargsPtr);
 static void vmDestroy(USLOSS_Sysargs *USLOSS_SysargsPtr);
 
-int debug5 = 0;
+void *vmRegion = NULL;
+
+int debug5 = 1;
 
 /*
  *----------------------------------------------------------------------
@@ -88,6 +94,7 @@ start4(char *arg)
         USLOSS_Console("start4(): Error spawning start5\n");
         Terminate(1);
     }
+	
     result = Wait(&pid, &status);
     if (result != 0) {
         USLOSS_Console("start4(): Error waiting for start5\n");
@@ -116,26 +123,23 @@ start4(char *arg)
 static void
 vmInit(USLOSS_Sysargs *USLOSS_SysargsPtr)
 {
-	int rc;
-	int mappings;
-	int pages;
-	int frames;
-	int pagers;
+	int rc = 0;
+	int *region = NULL;
 	
 	if (debug5)
 		USLOSS_Console("vmInit\n");
-	
-    CheckMode();
 
-	mappings = (long) USLOSS_SysargsPtr->arg1;
-	pages = (long) USLOSS_SysargsPtr->arg2;
-	frames = (long) USLOSS_SysargsPtr->arg3;
-	pagers = (long) USLOSS_SysargsPtr->arg4;
+    CHECKMODE;
+
+	int mappings = (long) USLOSS_SysargsPtr->arg1;
+	int pages = (long) USLOSS_SysargsPtr->arg2;
+	int frames = (long) USLOSS_SysargsPtr->arg3;
+	int pagers = (long) USLOSS_SysargsPtr->arg4;
 	
 	vmInitReal(mappings, pages, frames, pagers);
 	
-	USLOSS_SysargsPtr->arg1 = *region;
-	USLOSS_SysargsPtr->arg4 = rc;
+	USLOSS_SysargsPtr->arg1 = (void *) ((long) *region);
+	USLOSS_SysargsPtr->arg4 = (void *) ((long) rc);
 	
 } /* vmInit */
 
@@ -161,8 +165,8 @@ vmDestroy(USLOSS_Sysargs *USLOSS_SysargsPtr)
 {
 	if (debug5)
 		USLOSS_Console("vmDestroy\n");
-
-	CheckMode();
+	
+	CHECKMODE;
 	
 	vmDestroyReal();
 	
@@ -192,12 +196,15 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
     int status;
     int dummy;
 
-    CheckMode();
+    CHECKMODE;
+	
     status = USLOSS_MmuInit(mappings, pages, frames, USLOSS_MMU_MODE_TLB);
+	
     if (status != USLOSS_MMU_OK) {
        USLOSS_Console("vmInitReal: couldn't initialize MMU, status %d\n", status);
        abort();
     }
+
     USLOSS_IntVec[USLOSS_MMU_INT] = FaultHandler;
 
     /*
@@ -278,10 +285,15 @@ PrintStats(void)
 void
 vmDestroyReal(void)
 {
-	int result;	
-	CheckMode();
+	int result;
+	
+	CHECKMODE;
    
 	result = USLOSS_MmuDone();
+	if (debug5)
+		USLOSS_Console("vmDestroyReal result =%d\n", result);
+
+	
 	/*
     * Kill the pagers here.
     */
@@ -291,7 +303,16 @@ vmDestroyReal(void)
 	USLOSS_Console("vmStats:\n");
 	USLOSS_Console("pages: %d\n", vmStats.pages);
 	USLOSS_Console("frames: %d\n", vmStats.frames);
-	USLOSS_Console("blocks: %d\n", vmStats.blocks);
+	USLOSS_Console("diskBlocks: %d\n", vmStats.diskBlocks);
+	USLOSS_Console("freeFrames: %d\n", vmStats.freeFrames);
+	USLOSS_Console("freeDiskBlocks: %d\n", vmStats.freeDiskBlocks);	
+	USLOSS_Console("switches: %d\n", vmStats.switches);	
+	USLOSS_Console("faults: %d\n", vmStats.faults);	
+	USLOSS_Console("new: %d\n", vmStats.new);	
+	USLOSS_Console("pageIns: %d\n", vmStats.pageIns);	
+	USLOSS_Console("pageOuts: %d\n", vmStats.pageOuts);	
+	USLOSS_Console("replaced: %d\n", vmStats.replaced);	
+	
 	/* and so on... */
 
 } /* vmDestroyReal */
