@@ -11,8 +11,12 @@
 /*
  * Different states for a page.
  */
-#define UNUSED 500
-#define INCORE 501
+#define UNUSED 500  //untouched
+#define INCORE 501  //on the disk
+#define INFRAME 502 //in the frame table
+
+#define USED 503    //frame that is mapped to a page in memory
+#define SWAPDISK 1  //disk to use
 /* You'll probably want more states */
 
 
@@ -30,6 +34,20 @@ typedef struct PTE {
  * Frame table entry
  */
 // Create a struct for your frame table:
+typedef struct FTE {
+    int pid;         //pid of process using the frame, -1 if non 
+    int state;       //whether it is free/in use
+    int page;        //the page using this frame
+
+} FTE;
+
+/* Disk table entry */
+typedef struct DTE {
+    int pid;         //pid of process using this disk block, -1 if none
+    int page;        //the page using this disk blcok
+    int track;       //what track the page is on
+    int sector;      //sector it starts on
+} DTE;
 
 /*
  * Per-process information.
@@ -38,6 +56,7 @@ typedef struct Process {
     int  numPages;   // Size of the page table.
     PTE  *pageTable; // The page table for the process.
     // Add more stuff here */
+    int pid;
 } Process;
 
 /*
@@ -49,5 +68,6 @@ typedef struct FaultMsg {
     void *addr;      // Address that caused the fault.
     int  replyMbox;  // Mailbox to send reply.
     // Add more stuff here.
+    inr pageNum;     //the page the fault occurred on
 } FaultMsg;
 
