@@ -6,11 +6,17 @@
  *
  */
 
-#include <libuser.h>
 #include <usloss.h>
 #include <usyscall.h>
+#include <libuser.h>
 
-#ifdef PHASE_3
+#define CHECKMODE {						\
+	if (USLOSS_PsrGet() & USLOSS_PSR_CURRENT_MODE) { 				\
+	    USLOSS_Console("Trying to invoke syscall from kernel\n");	\
+	    USLOSS_Halt(1);						\
+	}							\
+}
+
 
 /*
  *  Routine:  VmInit
@@ -56,16 +62,12 @@ int VmInit(int mappings, int pages, int frames, int pagers, void **region)
  *		 
  *  Return Value: None
  */
-void VmDestroy(void)
+int VmDestroy(void)
 {
     USLOSS_Sysargs sa;
 
     CHECKMODE;
     sa.number = SYS_VMDESTROY;
     USLOSS_Syscall((void *) &sa);
-    return;
+    return 0;
 }
-
-#endif 
-
-/* end libuser.c */

@@ -68,6 +68,6 @@ typedef struct FaultMsg {
     void *addr;      // Address that caused the fault.
     int  replyMbox;  // Mailbox to send reply.
     // Add more stuff here.
-    inr pageNum;     //the page the fault occurred on
+    int pageNum;     //the page the fault occurred on
 } FaultMsg;
 

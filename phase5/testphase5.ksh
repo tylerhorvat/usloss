@@ -63,4 +63,3 @@ then
         diff -C 1 test${num}.txt ${dir}
     fi
 fi
-echo

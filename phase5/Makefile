@@ -31,7 +31,7 @@ ifeq ($(UNAME), Darwin)
         CFLAGS += -D_XOPEN_SOURCE
 endif
 
-LDFLAGS += -L. -L./usloss/lib
+LDFLAGS += -L. -L${PREFIX}/lib
 
 TESTDIR = testcases
 TESTS = test01 test02 test03 test04 test05 test06 test07 test08 \
