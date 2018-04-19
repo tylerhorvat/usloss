@@ -20,7 +20,6 @@ extern int  SemFree(int semaphore);
 
 // Phase 4 -- User Function Prototypes
 extern int  Sleep(int seconds);
-extern int  Sleep(int seconds);
 extern int  DiskRead(void *dbuff, int unit, int track, int first,
                      int sectors,int *status);
 extern int  DiskWrite(void *dbuff, int unit, int track, int first,
@@ -28,6 +27,10 @@ extern int  DiskWrite(void *dbuff, int unit, int track, int first,
 extern int  DiskSize(int unit, int *sector, int *track, int *disk);
 extern int  TermRead(char *buff, int bsize, int unit_id, int *nread);
 extern int  TermWrite(char *buff, int bsize, int unit_id, int *nwrite);
+
+// Phase 5 -- User Function Prototypes
+//extern void *VmInit(int mappings, int pages, int frames, int pagers);
+//extern void VmDestroy(void);
 
 extern int VmInit(int mappings, int pages, int frames, int pagers,
                   void **region);
