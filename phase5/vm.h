@@ -37,6 +37,7 @@ typedef struct Process {
     int pid; 	     // process ID
     int vm;          // 1 if using VM, 0 other wise
     int  numPages;   // Size of the page table.
+	int frames;		 // djf 
     PTE  *pageTable; // The page table for the process.
 } Process;
 

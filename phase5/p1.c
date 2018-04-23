@@ -1,4 +1,3 @@
-
 #include "usloss.h"
 #include <usyscall.h>
 #include <phase1.h>
@@ -30,17 +29,30 @@ p1_fork(int pid)
     {
         // set number of pages in process's page table and malloc memory
         int pages = processes[pid % MAXPROC].numPages;
+		//int frames = processes[pid % MAXPROC].frames;  //djf
         processes[pid % MAXPROC].pageTable = malloc(pages * sizeof(PTE));
-
+		
         //initialize page table for the process
-        for(int i = 0; i < pages; i++)
-        {
-            processes[pid % MAXPROC].pageTable[i].frame = -1;
+        //for(int i = 0; i < pages; i++)
+        for(int i = 0; i < vmStats.pages; i++)  //djf
+		{
+            processes[pid % MAXPROC].pageTable[i].pageNum = i; //djf
             processes[pid % MAXPROC].pageTable[i].accessed = 0;
             processes[pid % MAXPROC].pageTable[i].state = UNMAPPED;
             processes[pid % MAXPROC].pageTable[i].diskTableIndex = -1;
         }
-    }
+
+        for(int i = 0; i < vmStats.frames; i++)  //djf
+		{
+            processes[pid % MAXPROC].pageTable[i].frame = i; //djf
+        }
+
+        processes[pid % MAXPROC].vm = 1;  //djf, this is a vm process
+
+        sempReal(vmStatSem);  //djf
+        vmStats.new++;
+        semvReal(vmStatSem);	
+	}
 } /* p1_fork */
 
 void
@@ -70,31 +82,38 @@ p1_switch(int old, int new)
             }
         }
 
-       // if new process is a vm process
-       if(processes[new % MAXPROC].vm)
-       {
-           int frame;
+        // if new process is a vm process
+        if(processes[new % MAXPROC].vm)
+        {
+            int frame;
+			//USLOSS_Console("p1_switch: new %d\n", processes[new % MAXPROC].vm);
    
-           //for every page in the table, see if it should be mapped to a frame
-           for(int i = 0; i < vmStats.pages; i++)
-           {
-               frame = processes[new % MAXPROC].pageTable[i].frame;
+            //for every page in the table, see if it should be mapped to a frame
+            for(int i = 0; i < vmStats.pages; i++)
+            {
+                frame = processes[new % MAXPROC].pageTable[i].frame;
 
-               //page should only be mapped if != -1
-               if(frame != -1)
-               {
-                   result = USLOSS_MmuMap(0, i, frame, USLOSS_MMU_PROT_RW);
-                   if(result != USLOSS_MMU_OK)
-                   {
-                       USLOSS_Console("USLOSS_MmuMap error: %d\n", result);
-                   }
-               }
-           }
-       }
+                //page should only be mapped if != -1
+                //if(frame != -1)  
+				if(processes[new % MAXPROC].pageTable[i].state == UNMAPPED) //djf
+                {
+                    result = USLOSS_MmuMap(0, i, frame, USLOSS_MMU_PROT_RW);
+                    //USLOSS_Console("p1_switch MnuMap result %d\n", result);
+                    if(result != USLOSS_MMU_OK)
+                    {
+                        USLOSS_Console("USLOSS_MmuMap error: %d\n", result);
+                    }
+					processes[new % MAXPROC].pageTable[i].state = MAPPED; //djf
+				}
+            }
+        }
 
-       sempReal(vmStatSem);
-       vmStats.switches++;
-       semvReal(vmStatSem);
+        sempReal(vmStatSem);
+        vmStats.switches++;
+        semvReal(vmStatSem);
+
+	//USLOSS_Console("p1_switch: switches %d,faults %d\n", vmStats.switches, vmStats.faults);
+
     }
 } /* p1_switch */
 
@@ -137,7 +156,7 @@ p1_quit(int pid)
                     USLOSS_Console("USLOS_MmuSetAccess Error: %d\n", result);
                 }
 
-                sempReal(vmStatSem);
+                sempReal(vmStatSem); 
                 vmStats.freeFrames++;
                 semvReal(vmStatSem);
             }

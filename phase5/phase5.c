@@ -48,6 +48,9 @@ FaultMsg faults[MAXPROC]; /* Note that a process can have only
                            * one fault at a time, so we can
                            * allocate the messages statically
                            * and index them by pid. */
+int debug5 = 0;
+int oldpid = -1;
+int oldcause = -1;
 
 
 /*
@@ -71,6 +74,9 @@ start4(char *arg)
     int pid;
     int result;
     int status;
+
+	if(debug5)
+		USLOSS_Console("start4\n");
 
     /* to get user-process access to mailbox functions */
     systemCallVec[SYS_MBOXCREATE]      = mbox_create;
@@ -145,29 +151,6 @@ vmInit(USLOSS_Sysargs *args)
 /*
  *----------------------------------------------------------------------
  *
- * vmDestroy --
- *
- * Stub for the VmDestroy system call.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      VM system is cleaned up.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-vmDestroy(USLOSS_Sysargs *USLOSS_SysargsPtr)
-{
-   //CheckMode();
-} /* vmDestroy */
-
-
-/*
- *----------------------------------------------------------------------
- *
  * vmInitReal --
  *
  * Called by vmInit.
@@ -185,19 +168,22 @@ vmDestroy(USLOSS_Sysargs *USLOSS_SysargsPtr)
 void *
 vmInitReal(int mappings, int pages, int frames, int pagers)
 {
-   int status;
-   int dummy;
+    int status;
+    int dummy;
 
-   CheckMode();
+    CheckMode();
 
-   status = USLOSS_MmuInit(mappings, pages, frames, USLOSS_MMU_MODE_TLB);
-   if (status != USLOSS_MMU_OK) {
-      USLOSS_Console("vmInitReal: couldn't initialize MMU, status %d\n", status);
-      abort();
-   }
-   USLOSS_IntVec[USLOSS_MMU_INT] = FaultHandler;
+    // Initialize MMU
+	status = USLOSS_MmuInit(mappings, pages, frames, USLOSS_MMU_MODE_TLB);
+    if (status != USLOSS_MMU_OK) {
+        USLOSS_Console("vmInitReal: couldn't initialize MMU, status %d\n", status);
+        abort();
+    }
+	
+    // Initialize Fault Handler interrupt
+    USLOSS_IntVec[USLOSS_MMU_INT] = FaultHandler;
 
-   /*
+    /*
     * Initialize page tables.
     */
 
@@ -206,6 +192,7 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
         processes[i].pid = -1;
         processes[i].vm = 0;
         processes[i].numPages = pages;
+		processes[i].frames = frames;	//djf
 
         faults[i].pid = -1;
         faults[i].replyMbox = MboxCreate(1, 0);
@@ -249,9 +236,7 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
     clockSem = semcreateReal(1);                        //mutual exclustion for clockhand
     
 
-   /*
-    * Fork the pagers.
-    */
+    // Fork the pagers.
     numPagers = pagers;
     pagerPids = malloc(pagers * sizeof(int));
     char buf[100];
@@ -263,9 +248,8 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
 
     vmInitialized = 1;
 
-   /*
-    * Zero out, then initialize, the vmStats structure
-    */
+	
+    // Zero out, then initialize, the vmStats structure
     vmStats.pages = pages;
     vmStats.frames = frames;
     vmStats.diskBlocks = numTracksOnDisk*2;
@@ -279,15 +263,163 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
     vmStats.replaced = 0;
    
     vmStatSem = semcreateReal(1);
-   /*
-    * Initialize other vmStats fields.
-    */
-
 
     vmRegion = USLOSS_MmuRegion(&dummy);
+	
+	if(debug5)
+		USLOSS_Console("vmInitReal:MmuRegion vmRegion %d\n", vmRegion);
 
     return vmRegion;
 } /* vmInitReal */
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * vmDestroy --
+ *
+ * Stub for the VmDestroy system call.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      VM system is cleaned up.
+ *
+ *----------------------------------------------------------------------
+ */
+static void
+vmDestroy(USLOSS_Sysargs *USLOSS_SysargsPtr)
+{
+   CheckMode();
+   
+   vmDestroyReal();
+   
+} /* vmDestroy */
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * vmDestroyReal --
+ *
+ * Called by vmDestroy.
+ * Frees all of the global data structures
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      The MMU is turned off.
+ *
+ *----------------------------------------------------------------------
+ */
+void
+vmDestroyReal(void)
+{
+    int status;
+	
+    CheckMode();
+
+    status = USLOSS_MmuDone();
+    if (status != USLOSS_MMU_OK) {
+        USLOSS_Console("vmDestroyReal: MmuDone Error %d\n", status);
+        //abort();
+    }
+	
+    /*
+    * Kill the pagers here.
+    */
+ 
+    //Print vm statistics.
+    PrintStats();
+
+
+} /* vmDestroyReal */
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FaultHandler
+ *
+ * Handles an MMU interrupt. Simply stores information about the
+ * fault in a queue, wakes a waiting pager, and blocks until
+ * the fault has been handled.
+ *
+ * Results:
+ * None.
+ *
+ * Side effects:
+ * The current process is blocked until the fault is handled.
+ *
+ *----------------------------------------------------------------------
+ */
+static void
+FaultHandler(int type /* MMU_INT */,
+             void * arg  /* Offset within VM region */)
+{
+    int cause;
+	
+    assert(type == USLOSS_MMU_INT);
+    cause = USLOSS_MmuGetCause();
+    assert(cause == USLOSS_MMU_FAULT);
+    //vmStats.faults++; 
+	
+	//if(debug5)
+		//USLOSS_Console("FaultHandler: type %d, offset %d, cause %d\n", type, arg, cause);
+
+	int pid = getpid();	
+	
+    //faultMbox = MboxCreate(faults, sizeof(faults));	
+    // Fill in faults[pid % MAXPROC], send it to the pagers, and wait for the reply.
+	//faults[pid % MAXPROC].pid = pid;
+	//faults[pid % MAXPROC].addr = arg;
+	//faults[pid % MAXPROC].replyMbox = faultMbox;
+	//MboxSend(faultMbox, NULL, 0);	
+
+	if ((pid != oldpid) && (cause != oldcause)) {
+		USLOSS_Console("FaultHandler: pid %d, oldpid %d, cause %d, oldcause %d\n", pid, oldpid, cause, oldcause);
+		vmStats.faults++;
+	}
+	
+	oldpid = pid;
+	oldcause = cause;
+
+	if(debug5)
+		USLOSS_Console("FaultHandler: pid %d, faults %d, cause %d\n", pid, vmStats.faults, cause);
+	
+} /* FaultHandler */
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Pager 
+ *
+ * Kernel process that handles page faults and does page replacement.
+ *
+ * Results:
+ * None.
+ *
+ * Side effects:
+ * None.
+ *
+ *----------------------------------------------------------------------
+ */
+static int
+Pager(char *buf)
+{
+//    while(1) {
+        /* Wait for fault to occur (receive from mailbox) */
+        /* Look for free frame */
+        /* If there isn't one then use clock algorithm to
+         * replace a page (perhaps write to disk) */
+        /* Load page into frame from disk, if necessary */
+        /* Unblock waiting (faulting) process */
+//    }
+    return 0;
+} /* Pager */
 
 
 /*
@@ -323,108 +455,14 @@ PrintStats(void)
 } /* PrintStats */
 
 
-/*
- *----------------------------------------------------------------------
- *
- * vmDestroyReal --
- *
- * Called by vmDestroy.
- * Frees all of the global data structures
- *
- * Results:
- *      None
- *
- * Side effects:
- *      The MMU is turned off.
- *
- *----------------------------------------------------------------------
- */
-void
-vmDestroyReal(void)
-{
-
-   //CheckMode();
-   USLOSS_MmuDone();
-   /*
-    * Kill the pagers here.
-    */
-   /* 
-    * Print vm statistics.
-    */
-   USLOSS_Console("vmStats:\n");
-   USLOSS_Console("pages: %d\n", vmStats.pages);
-   USLOSS_Console("frames: %d\n", vmStats.frames);
-   USLOSS_Console("blocks: %d\n", vmStats.diskBlocks);
-   /* and so on... */
-
-} /* vmDestroyReal */
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FaultHandler
- *
- * Handles an MMU interrupt. Simply stores information about the
- * fault in a queue, wakes a waiting pager, and blocks until
- * the fault has been handled.
- *
- * Results:
- * None.
- *
- * Side effects:
- * The current process is blocked until the fault is handled.
- *
- *----------------------------------------------------------------------
- */
-static void
-FaultHandler(int type /* MMU_INT */,
-             void * arg  /* Offset within VM region */)
-{
-   int cause;
-
-   assert(type == USLOSS_MMU_INT);
-   cause = USLOSS_MmuGetCause();
-   assert(cause == USLOSS_MMU_FAULT);
-   vmStats.faults++;
-   /*
-    * Fill in faults[pid % MAXPROC], send it to the pagers, and wait for the
-    * reply.
-    */
-} /* FaultHandler */
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Pager 
- *
- * Kernel process that handles page faults and does page replacement.
- *
- * Results:
- * None.
- *
- * Side effects:
- * None.
- *
- *----------------------------------------------------------------------
- */
-static int
-Pager(char *buf)
-{
-    while(1) {
-        /* Wait for fault to occur (receive from mailbox) */
-        /* Look for free frame */
-        /* If there isn't one then use clock algorithm to
-         * replace a page (perhaps write to disk) */
-        /* Load page into frame from disk, if necessary */
-        /* Unblock waiting (faulting) process */
-    }
-    return 0;
-} /* Pager */
-
 void setUserMode() 
 {
-    USLOSS_PsrSet(USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE);
+    int status;
+
+    status = USLOSS_PsrSet(USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE);
+    if (status != USLOSS_DEV_OK) {
+        USLOSS_Console("setUserMode: PsrSet Error %d\n", status);
+        abort();
+    }
 }
 
