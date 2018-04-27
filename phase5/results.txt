@@ -5,7 +5,7 @@ Test04 -- Passed!
 Test05 -- switches mismatched, but close -- should be ok (still try to fix?)
 Test06 -- switches mismatched, but close -- should be ok (still try to fix?)
 Test07 -- Passed!
-Test08 -- vmFaults incorrect
+Test08 -- vmFaults incorrect && getting a memory fault
 Test09 -- Passed!
 Test10 -- vmFaults assert error
 Test11 -- vmFaults assert error
