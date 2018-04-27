@@ -1,14 +1,11 @@
 /*
- * simple10.c
+ * test11.c
  *
- * Two processes. Two pages of virtual memory. Two frames.
- * Each writing and reading data from both page 0 and page 1 with
+ * Four processes. Four pages of virtual memory. Four frames.
+ * Each writing and reading data from pages 0 to 4 with
  *    a context switch in between.
  * Should cause page 0 of each process to be written to disk
- * ChildA writes to page 0, in frame 0
- * ChildB writes to page 0, in frame 1
- * ChildA writes to page 1, in frame 0, sends A's page 0 to disk
- * ChildB writes to page 1, in frame 1, sends B's page 0 to disk
+ * Should cause page 1 of the first 3 processes to be written to disk
  */
 
 #include <usloss.h>
@@ -20,12 +17,12 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple10"
+#define TEST        "test11"
 #define PAGES       4
 #define CHILDREN    4
 #define FRAMES      4
 #define PRIORITY    5
-#define ITERATIONS  2
+#define ITERATIONS  3
 #define PAGERS      1
 #define MAPPINGS    PAGES
 
@@ -48,17 +45,12 @@ int
 Child(char *arg)
 {
     int    pid;
-    char   str[64];
     char   toPrint[64];
     
 
     GetPID(&pid);
     Tconsole("\nChild(%d): starting\n", pid);
     
-             //             1         2          3         4
-             //   012345678901234567890123456787901234567890
-    sprintf(str, "This is the first page, pid = %d", pid);
-
     for (int i = 0; i < ITERATIONS; i++) {
 
         switch (i) {
@@ -67,6 +59,12 @@ Child(char *arg)
             break;
         case 1:
             sprintf(toPrint, "%c: This is page one, pid = %d", *arg, pid);
+            break;
+        case 2:
+            sprintf(toPrint, "%c: This is page two, pid = %d", *arg, pid);
+            break;
+        case 3:
+            sprintf(toPrint, "%c: This is page three, pid = %d", *arg, pid);
             break;
         }
         Tconsole("Child(%d): toPrint = '%s'\n", pid, toPrint);
@@ -147,10 +145,10 @@ start5(char *arg)
         assert(status == 137);
     }
 
-    PrintStats();
-    assert(vmStats.faults == 8);
-    assert(vmStats.new == 8);
-    assert(vmStats.pageOuts == 3);
+    //PrintStats();
+    assert(vmStats.faults == 12);
+    assert(vmStats.new == 12);
+    assert(vmStats.pageOuts == 7);
     assert(vmStats.pageIns == 0);
 
     Tconsole("start5(): done\n");

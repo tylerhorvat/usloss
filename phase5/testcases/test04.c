@@ -1,5 +1,5 @@
 /*
- * simple4.c
+ * test04.c
  *
  * One process reads every byte of every page, where frames = pages-1. If the
  * clock algorithm starts with frame 0, this will cause a page fault on every
@@ -14,7 +14,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple4"
+#define TEST        "test04"
 #define PAGES       7
 #define CHILDREN    1
 #define FRAMES      (PAGES-1)

@@ -1,4 +1,4 @@
-start5(): Running:    simple1
+start5(): Running:    test01
 start5(): Pagers:     1
           Mappings:   1
           Pages:      1
@@ -25,7 +25,7 @@ frames:         1
 diskBlocks:     64
 freeFrames:     1
 freeDiskBlocks: 64
-switches:       10
+switches:       8
 faults:         1
 new:            1
 pageIns:        0

@@ -1,5 +1,5 @@
 /*
- * simple5.c
+ * test05.c
  *
  * One process writes every page, where frames = pages-1. If the clock
  * algorithm starts with frame 0, this will cause a page fault on every
@@ -14,7 +14,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple5"
+#define TEST        "test05"
 #define PAGES       2
 #define CHILDREN    1
 #define FRAMES      (PAGES-1)

@@ -12,155 +12,158 @@
 
 extern int debugflag;
 extern int vmInitialized;
-extern int vmStatSem;
 extern Process processes[MAXPROC];
 extern FTE *frameTable;
+extern int vmStatSem;
 extern VmStats vmStats;
-extern int sempReal(int);
-extern int semvReal(int);
+extern int  sempReal(int semaphore);
+extern int  semvReal(int semaphore);
 
-void
-p1_fork(int pid)
-{
+/*----------------------------------------------------------------------
+ * p1_fork
+ *
+ * Creates a page table for a process, if the virtual memory system
+ * has been initialized.
+ *
+ * Results: None
+ *
+ * Side effects: pageTable malloced and initialized for process
+ *----------------------------------------------------------------------*/
+void p1_fork(int pid) {
     if (DEBUG && debugflag)
         USLOSS_Console("p1_fork() called: pid = %d\n", pid);
 
-    if(vmInitialized)
-    {
-        // set number of pages in process's page table and malloc memory
+    if (vmInitialized) {
+        /* set number of pages in process's page table and malloc memory */
         int pages = processes[pid % MAXPROC].numPages;
-		//int frames = processes[pid % MAXPROC].frames;  //djf
         processes[pid % MAXPROC].pageTable = malloc(pages * sizeof(PTE));
-		
-        //initialize page table for the process
-        //for(int i = 0; i < pages; i++)
-        for(int i = 0; i < vmStats.pages; i++)  //djf
-		{
-            processes[pid % MAXPROC].pageTable[i].pageNum = i; //djf
-            processes[pid % MAXPROC].pageTable[i].accessed = 0;
-            processes[pid % MAXPROC].pageTable[i].state = UNMAPPED;
-            processes[pid % MAXPROC].pageTable[i].diskTableIndex = -1;
+
+        /* initialize page table for the process */
+        for (int page = 0; page < pages; page++) {
+            processes[pid % MAXPROC].pageTable[page].frame = -1;
+            processes[pid % MAXPROC].pageTable[page].accessed = 0;
+            processes[pid % MAXPROC].pageTable[page].state = UNMAPPED;
+            processes[pid % MAXPROC].pageTable[page].diskTableIndex = -1;
         }
-
-        for(int i = 0; i < vmStats.frames; i++)  //djf
-		{
-            processes[pid % MAXPROC].pageTable[i].frame = i; //djf
-        }
-
-        processes[pid % MAXPROC].vm = 1;  //djf, this is a vm process
-
-        sempReal(vmStatSem);  //djf
-        vmStats.new++;
-        semvReal(vmStatSem);	
-	}
+    }
 } /* p1_fork */
 
-void
-p1_switch(int old, int new)
-{
-    if (DEBUG && debugflag)
+/*----------------------------------------------------------------------
+ * p1_switch
+ *
+ * Unmaps and Maps pages to frames in the MMU for processes that are context
+ * switching. A process must be set as a virtual memory process by the fault
+ * handler in phase5.c to unmap and map.
+ *
+ * Results: None
+ *
+ * Side effects: mapping are added or removed from the MMU
+ *----------------------------------------------------------------------*/
+void p1_switch(int old, int new) {
+    if (DEBUG && debugflag) {
         USLOSS_Console("p1_switch() called: old = %d, new = %d\n", old, new);
+        USLOSS_Console("p1_switch(): new = %d, vm = %d\n", new, 
+                processes[new].vm);
+    }
 
     int result;
 
-    if(vmInitialized)
-    {
-        if(processes[old % MAXPROC].vm)
-        {
-            for(int i = 0; i < vmStats.pages; i++)
-            {
-                //unmap page from MMU
-                if(processes[old % MAXPROC].pageTable[i].state == MAPPED)
-                {
+    /* only perform mappings and unmappings if vm is initialized */
+    if (vmInitialized) {
+
+        /* if old is a vm process */
+        if (processes[old % MAXPROC].vm) {
+            for(int i = 0; i < vmStats.pages; i++){
+
+                /* Unmap page from MMU */
+                if (processes[old % MAXPROC].pageTable[i].state == MAPPED) {
                     result = USLOSS_MmuUnmap(0, i);
-                    if(result != USLOSS_MMU_OK)
-                    {
-                        USLOSS_Console("USLOSS_MmuUnmap Error: %d\n", result);
+                    if (result != USLOSS_MMU_OK) {
+                        USLOSS_Console("p1_switch(old): "
+                                "USLOSS_MmuUnmap Error: %d\n", result);
                     }
                     processes[old % MAXPROC].pageTable[i].state = UNMAPPED;
                 }
             }
         }
 
-        // if new process is a vm process
-        if(processes[new % MAXPROC].vm)
-        {
+        /* if new is a vm process */
+        if (processes[new % MAXPROC].vm) {
             int frame;
-			//USLOSS_Console("p1_switch: new %d\n", processes[new % MAXPROC].vm);
-   
-            //for every page in the table, see if it should be mapped to a frame
-            for(int i = 0; i < vmStats.pages; i++)
-            {
+
+            /* 
+             * for every page in the pageTable, see if it should be mapped
+             * to a frame.
+             */
+            for(int i = 0; i < vmStats.pages; i++){
                 frame = processes[new % MAXPROC].pageTable[i].frame;
 
-                //page should only be mapped if != -1
-                //if(frame != -1)  
-				if(processes[new % MAXPROC].pageTable[i].state == UNMAPPED) //djf
-                {
+                /* page should only be mapped to a frame if frame is not -1 */
+                if (frame != -1) {
                     result = USLOSS_MmuMap(0, i, frame, USLOSS_MMU_PROT_RW);
-                    //USLOSS_Console("p1_switch MnuMap result %d\n", result);
-                    if(result != USLOSS_MMU_OK)
-                    {
-                        USLOSS_Console("USLOSS_MmuMap error: %d\n", result);
+                    if(result != USLOSS_MMU_OK){
+                        USLOSS_Console("p1_switch(new): USLOSS_MmuMap error: "
+                                "%d\n", result);
                     }
-					processes[new % MAXPROC].pageTable[i].state = MAPPED; //djf
-				}
+                    processes[new % MAXPROC].pageTable[i].state = MAPPED;
+                }
             }
+
         }
 
         sempReal(vmStatSem);
         vmStats.switches++;
         semvReal(vmStatSem);
-
-	//USLOSS_Console("p1_switch: switches %d,faults %d\n", vmStats.switches, vmStats.faults);
-
     }
 } /* p1_switch */
 
-void
-p1_quit(int pid)
-{
+/*----------------------------------------------------------------------
+ * p1_quit
+ *
+ * Removes mappings to the MMU for processes that are quiting.
+ *
+ * Results: None
+ *
+ * Side effects: mappings are removed from the MMU
+ *----------------------------------------------------------------------*/
+void p1_quit(int pid) {
+    int result; 
+
     if (DEBUG && debugflag)
         USLOSS_Console("p1_quit() called: pid = %d\n", pid);
 
-    int result;
-
-    //unmap pages that are mapped in the MMU
-    if(vmInitialized && processes[pid % MAXPROC].vm)
-    {
+    /* Unmap pages that are maped in the MMU */
+    if (vmInitialized && processes[pid % MAXPROC].vm) {
         int frame;
-        for(int i = 0; i < vmStats.pages; i++)
-        {
-            frame = processes[pid % MAXPROC].pageTable[i].frame;
+        for(int page = 0; page < vmStats.pages; page++) {
+            frame = processes[pid % MAXPROC].pageTable[page].frame;
 
-            //page is mapped, if frame is not -1 in pageTable
-            if(frame != -1)
-            {
-                result = USLOSS_MmuUnmap(0, i);
-                if(result != USLOSS_MMU_OK)
-                {
-                    USLOSS_Console("USLOSS_MmuUnmap Error: %d\n", result);
+            /* page is mapped, if frame is not -1 in pageTable */
+            if (frame != -1) {
+                result = USLOSS_MmuUnmap(0, page);
+                if (result != USLOSS_MMU_OK) {
+                    USLOSS_Console("p1_quit(): "
+                            "USLOSS_MmuUnmap Error: %d\n", result);
                 }
-            
-
-                // update frame table
-                processes[pid % MAXPROC].pageTable[i].frame = -1;
+                
+                /* update frame table */
+                processes[pid % MAXPROC].pageTable[page].frame = -1;
                 frameTable[frame].state = UNUSED;
                 frameTable[frame].ref = UNREFERENCED;
                 frameTable[frame].dirty = CLEAN;
 
-                //update MMU
+                /* update MMU */
                 result = USLOSS_MmuSetAccess(frame, UNREFERENCED + CLEAN);
-                if(result != USLOSS_MMU_OK)
-                {
-                    USLOSS_Console("USLOS_MmuSetAccess Error: %d\n", result);
-                }
+                if (result != USLOSS_MMU_OK) {
+                    USLOSS_Console("p1_quit: USLOSS_MmuSetAccess "
+                        "Error: %d\n", result);
+                }  
 
-                sempReal(vmStatSem); 
+                sempReal(vmStatSem);
                 vmStats.freeFrames++;
                 semvReal(vmStatSem);
             }
-        } 
-        free(processes[pid % MAXPROC].pageTable); //free malloced memory
+        }
+        free(processes[pid % MAXPROC].pageTable); // free malloced memory
     }
 } /* p1_quit */

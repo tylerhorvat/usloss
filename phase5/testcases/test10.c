@@ -1,5 +1,5 @@
 /*
- * simple10.c
+ * test10.c
  *
  * Two processes. Two pages of virtual memory. Two frames.
  * Each writing and reading data from both page 0 and page 1 with
@@ -20,7 +20,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple10"
+#define TEST        "test10"
 #define PAGES       2
 #define CHILDREN    2
 #define FRAMES      2
@@ -48,17 +48,12 @@ int
 Child(char *arg)
 {
     int    pid;
-    char   str[64];
     char   toPrint[64];
     
 
     GetPID(&pid);
     Tconsole("\nChild(%d): starting\n", pid);
     
-             //             1         2          3         4
-             //   012345678901234567890123456787901234567890
-    sprintf(str, "This is the first page, pid = %d", pid);
-
     for (int i = 0; i < ITERATIONS; i++) {
 
         switch (i) {
@@ -147,7 +142,7 @@ start5(char *arg)
         assert(status == 137);
     }
 
-    PrintStats();
+    //PrintStats();
     assert(vmStats.faults == 4);
     assert(vmStats.new == 4);
     assert(vmStats.pageOuts == 2);

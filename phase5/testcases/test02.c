@@ -1,5 +1,5 @@
 /*
- * simple2.c
+ * test02.c
  * Reads bytes from page 0 of the vmRegion to be sure they are
  * all set to 0.
  *
@@ -13,7 +13,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple2"
+#define TEST        "test02"
 #define PAGES       1
 #define CHILDREN    1
 #define FRAMES      1

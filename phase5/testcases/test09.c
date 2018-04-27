@@ -1,5 +1,5 @@
 /*
- * simple9.c
+ * test09.c
  *
  * Two processes.  2 pages, 2 frames
  * Each writing and reading data from page 0
@@ -15,7 +15,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple9"
+#define TEST        "test09"
 #define PAGES       2
 #define CHILDREN    2
 #define FRAMES      2

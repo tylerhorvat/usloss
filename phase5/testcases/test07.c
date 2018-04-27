@@ -1,5 +1,5 @@
 /*
- * simple7.c
+ * test07.c
  *
  * Two processes.
  * Each writing and reading data from the one page with
@@ -16,10 +16,10 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple7"
+#define TEST        "test07"
 #define PAGES       1
 #define CHILDREN    3
-#define FRAMES      2
+#define FRAMES      3
 #define PRIORITY    5
 #define ITERATIONS  1
 #define PAGERS      1

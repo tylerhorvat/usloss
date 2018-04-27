@@ -1,5 +1,5 @@
 /*
- * simple8.c
+ * test08.c
  *
  * Two children.
  * Each child reads one integer from each page.
@@ -17,7 +17,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple8"
+#define TEST        "test08"
 #define PAGES       4
 #define CHILDREN    2
 #define FRAMES      (PAGES-1)

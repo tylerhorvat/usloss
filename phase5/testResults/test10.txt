@@ -1,4 +1,4 @@
-start5(): Running:    simple10
+start5(): Running:    test10
 start5(): Pagers:     1
           Mappings:   2
           Pages:      2
@@ -38,18 +38,6 @@ Child(12): strcmp second attempt to read worked!
 Child(12): checking various vmStats
 Child(12): terminating
 
-VmStats
-pages:          2
-frames:         2
-diskBlocks:     64
-freeFrames:     2
-freeDiskBlocks: 64
-switches:       77
-faults:         4
-new:            4
-pageIns:        0
-pageOuts:       2
-replaced:       0
 start5(): done
 VmStats
 pages:          2
@@ -57,7 +45,7 @@ frames:         2
 diskBlocks:     64
 freeFrames:     2
 freeDiskBlocks: 64
-switches:       77
+switches:       75
 faults:         4
 new:            4
 pageIns:        0

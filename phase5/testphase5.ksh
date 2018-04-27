@@ -1,7 +1,7 @@
 #!/bin/ksh
-#dir=/home/cs452/spring18/phase5/testResults
+dir=/home/cs452/spring18/phase5/testResults
 #dir=/home/cs452/spring18/admin/project/phase5/testResults
-dir=/Users/patrick/Classes/452/project/phase5/testResults
+#dir=/Users/patrick/Classes/452/project/phase5/testResults
 
 if [ "$#" -eq 0 ] 
 then
@@ -63,3 +63,4 @@ then
         diff -C 1 test${num}.txt ${dir}
     fi
 fi
+echo

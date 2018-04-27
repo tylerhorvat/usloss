@@ -1,5 +1,5 @@
 /*
- * simple3.c
+ * test03.c
  * Writes bytes into all 3 pages of the vmRegion.
  * Should see 3 page faults.
  *
@@ -13,7 +13,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple3"
+#define TEST        "test03"
 #define PAGES       3
 #define CHILDREN    1
 #define FRAMES      3

@@ -1,5 +1,5 @@
 /*
- * simple.c
+ * test01.c
  *
  * One process, Writing and Reading the same data from the page with
  * a context switch in between.
@@ -16,7 +16,7 @@
 
 #define Tconsole USLOSS_Console
 
-#define TEST        "simple1"
+#define TEST        "test01"
 #define PAGES       1
 #define CHILDREN    1
 #define FRAMES      1
