@@ -14,6 +14,7 @@ extern int debugflag;
 extern int vmInitialized;
 extern Process processes[MAXPROC];
 extern FTE *frameTable;
+extern DTE *diskTable;
 extern int vmStatSem;
 extern VmStats vmStats;
 extern int  sempReal(int semaphore);
@@ -127,18 +128,24 @@ void p1_switch(int old, int new) {
  * Side effects: mappings are removed from the MMU
  *----------------------------------------------------------------------*/
 void p1_quit(int pid) {
+   
     int result; 
 
     if (DEBUG && debugflag)
         USLOSS_Console("p1_quit() called: pid = %d\n", pid);
 
-    /* Unmap pages that are maped in the MMU */
+    // Unmap pages that are maped in the MMU 
     if (vmInitialized && processes[pid % MAXPROC].vm) {
         int frame;
         for(int page = 0; page < vmStats.pages; page++) {
+           //USLOSS_Console("diskTableIndex: %d\n", processes[pid % MAXPROC].pageTable[page].diskTableIndex);
+            int diskLocation = processes[pid % MAXPROC].pageTable[page].diskTableIndex;
+
+            diskTable[diskLocation].state = UNUSED;
+            vmStats.freeDiskBlocks++;
             frame = processes[pid % MAXPROC].pageTable[page].frame;
 
-            /* page is mapped, if frame is not -1 in pageTable */
+            //page is mapped, if frame is not -1 in pageTable 
             if (frame != -1) {
                 result = USLOSS_MmuUnmap(0, page);
                 if (result != USLOSS_MMU_OK) {
@@ -146,13 +153,13 @@ void p1_quit(int pid) {
                             "USLOSS_MmuUnmap Error: %d\n", result);
                 }
                 
-                /* update frame table */
+                //update frame table 
                 processes[pid % MAXPROC].pageTable[page].frame = -1;
                 frameTable[frame].state = UNUSED;
                 frameTable[frame].ref = UNREFERENCED;
                 frameTable[frame].dirty = CLEAN;
 
-                /* update MMU */
+                //update MMU
                 result = USLOSS_MmuSetAccess(frame, UNREFERENCED + CLEAN);
                 if (result != USLOSS_MMU_OK) {
                     USLOSS_Console("p1_quit: USLOSS_MmuSetAccess "
