@@ -8,7 +8,7 @@
 #include <libuser.h>
 #include <vm.h>
 
-#define DEBUG 0
+#define DEBUG 0 
 
 extern int debugflag;
 extern int vmInitialized;
