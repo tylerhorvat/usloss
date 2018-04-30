@@ -2,8 +2,9 @@ Test01 -- Passed!
 Test02 -- Passed!
 Test03 -- Passed!
 Test04 -- Passed!
-Test05 -- free disk blocks mismatch, switches mismatch
-Test06 -- free disk blocks mismatch, switches mismatchTest07 -- Passed!
+Test05 -- switches mismatched, but close -- should be ok (still try to fix?)
+Test06 -- switches mismatched, but close -- should be ok (still try to fix?)
+Test07 -- Passed!
 Test08 -- vmFaults incorrect && getting a memory fault
 Test09 -- Passed!
 Test10 -- vmFaults assert error

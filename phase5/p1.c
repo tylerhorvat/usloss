@@ -147,22 +147,26 @@ void p1_quit(int pid) {
                 USLOSS_Console("p1_quit() 2\n");
 
 
-            /*int diskLocation = processes[pid % MAXPROC].pageTable[page].diskTableIndex;
+            int diskLocation = processes[pid % MAXPROC].pageTable[page].diskTableIndex;
+
+            //USLOSS_Console("disklocation = %d\n", diskLocation);
 
             if (DEBUG)
                 USLOSS_Console("p1_quit() 3\n");
-
-            diskTable[diskLocation].state = UNUSED;
+            
+            if(diskLocation != -1)
+            {
+                diskTable[diskLocation].state = UNUSED;
 
             if (DEBUG)
                 USLOSS_Console("p1_quit() 4\n");
 
-            vmStats.freeDiskBlocks++;
-
+                vmStats.freeDiskBlocks++;
+            }
             if (DEBUG)
-                USLOSS_Console("p1_quit() 5\n");*/
+                USLOSS_Console("p1_quit() 5\n");
 
-            frame = processes[pid % MAXPROC].pageTable[page].frame;\
+            frame = processes[pid % MAXPROC].pageTable[page].frame;
 
             if (DEBUG)
                 USLOSS_Console("p1_quit() 6\n");
