@@ -175,7 +175,7 @@ void *vmInitReal(int mappings, int pages, int frames, int pagers){
     if (pagers > MAXPAGERS) {
         return ((void *)(long)-1);
     }
-    if (mappings != pages) {
+    if (mappings != pages) { 
         return ((void *)(long)-1);
     }
 
