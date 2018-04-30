@@ -31,7 +31,7 @@ extern int  semvReal(int semaphore);
  * Side effects: pageTable malloced and initialized for process
  *----------------------------------------------------------------------*/
 void p1_fork(int pid) {
-    if (DEBUG && debugflag)
+    if (DEBUG)
         USLOSS_Console("p1_fork() called: pid = %d\n", pid);
 
     if (vmInitialized) {
@@ -61,7 +61,7 @@ void p1_fork(int pid) {
  * Side effects: mapping are added or removed from the MMU
  *----------------------------------------------------------------------*/
 void p1_switch(int old, int new) {
-    if (DEBUG && debugflag) {
+    if (DEBUG) {
         USLOSS_Console("p1_switch() called: old = %d, new = %d\n", old, new);
         USLOSS_Console("p1_switch(): new = %d, vm = %d\n", new, 
                 processes[new].vm);
@@ -131,20 +131,44 @@ void p1_quit(int pid) {
    
     int result; 
 
-    if (DEBUG && debugflag)
+    if (DEBUG)
         USLOSS_Console("p1_quit() called: pid = %d\n", pid);
 
     // Unmap pages that are maped in the MMU 
     if (vmInitialized && processes[pid % MAXPROC].vm) {
         int frame;
+        if (DEBUG)
+                USLOSS_Console("p1_quit() 1\n");
+
         for(int page = 0; page < vmStats.pages; page++) {
            //USLOSS_Console("diskTableIndex: %d\n", processes[pid % MAXPROC].pageTable[page].diskTableIndex);
-            int diskLocation = processes[pid % MAXPROC].pageTable[page].diskTableIndex;
+            
+            if (DEBUG)
+                USLOSS_Console("p1_quit() 2\n");
+
+
+            /*int diskLocation = processes[pid % MAXPROC].pageTable[page].diskTableIndex;
+
+            if (DEBUG)
+                USLOSS_Console("p1_quit() 3\n");
 
             diskTable[diskLocation].state = UNUSED;
-            vmStats.freeDiskBlocks++;
-            frame = processes[pid % MAXPROC].pageTable[page].frame;
 
+            if (DEBUG)
+                USLOSS_Console("p1_quit() 4\n");
+
+            vmStats.freeDiskBlocks++;
+
+            if (DEBUG)
+                USLOSS_Console("p1_quit() 5\n");*/
+
+            frame = processes[pid % MAXPROC].pageTable[page].frame;\
+
+            if (DEBUG)
+                USLOSS_Console("p1_quit() 6\n");
+
+
+            
             //page is mapped, if frame is not -1 in pageTable 
             if (frame != -1) {
                 result = USLOSS_MmuUnmap(0, page);
