@@ -1,41 +1,46 @@
+#include <phase1.h>
 /*
- * vm.h
+ * All processes use the same tag.
  */
-
-
 #define TAG 0
+#define SWAP 1
 
-/* constants for a page */
-#define UNMAPPED 0
-#define MAPPED 1
-
-/* constants for a frame */
-#define UNUSED 0
-#define USED 1
-#define UNREFERENCED 0
-#define REFERENCED USLOSS_MMU_REF
-#define CLEAN 0
-#define DIRTY USLOSS_MMU_DIRTY
+/*
+ * Different states for a page.
+ */
+#define UNUSED 500
+#define CORE 501
+#define FRAME 502
+/* You'll probably want more states */
 
 /*
  * Page table entry.
  */
 typedef struct PTE {
-    int  state;      // UNMAPPED or MAPPED
-    int accessed;    // page has been written to a frame
+    int  state;      // See above.
     int  frame;      // Frame that stores the page (if any). -1 if none.
-    int pageNum;     // number of the page being stored
-    int  diskTableIndex;  // -1 if none or index into disk table array.
+    int  diskBlock;  // Disk block that stores the page (if any). -1 if none.
+    // Add more stuff here
+    int  track;
+    int  sector;
 } PTE;
+
+/*
+ * Frame table entry
+ */
+typedef struct FTE {
+    int pid;    //process using frame, -1 if none.
+    int state; // UNUSED or INCORE or INFRAME
+    int page;  //page with frame
+} FTE;
 
 /*
  * Per-process information.
  */
 typedef struct Process {
-    int pid; 	     // process ID
-    int vm;          // 1 if using VM, 0 other wise
     int  numPages;   // Size of the page table.
     PTE  *pageTable; // The page table for the process.
+    // Add more stuff here */
 } Process;
 
 /*
@@ -44,29 +49,10 @@ typedef struct Process {
  */
 typedef struct FaultMsg {
     int  pid;        // Process with the problem.
-    void *addr;      // Address that caused the fault.
-    int  replyMbox;  // Mailbox to send reply. 1 slot
+    void *address;      // Address that caused the fault.
+    int  reply;  // Mailbox to send reply.
+    // Add more stuff here.
 } FaultMsg;
 
-/*
- * Frame table entry.
- */
-typedef struct FTE {
-    int state;      // UNUSED or USED
-    int ref;        // REFERENCED or UNREFERENCED
-    int dirty;      // CLEAN or DIRTY
-    int pid;        // pid of process using this frame 
-    PTE *page;      // Page mapped to frame, -1 if none.
-} FTE;
 
-/*
- * Disk table entry.
- */
-typedef struct DTE {
-    int state;     // USED or UNUSED 
-    int pid;       // process ID being stored in the disk block
-    int page;      // page number being stored
-    int track;     // track were the page is stored
-    int sector;    // sector were the page is stored
-} DTE;
 #define CheckMode() assert(USLOSS_PsrGet() & USLOSS_PSR_CURRENT_MODE)
